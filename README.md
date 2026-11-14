@@ -4,6 +4,10 @@ Finanzverwaltung für den eigenen Haushalt als Web-App (FastAPI + SQLite +
 React/PWA), betrieben auf dem eigenen Rechner. Was in welcher Reihenfolge
 gebaut wurde, steht im [Phasenplan](docs/phasenplan.md).
 
+### ▶ [Rundgang durch die App](https://schlotti73.github.io/Haushaltsfinanzen/demo/)
+
+Alle Bereiche mit Screenshots und Erklärung, ohne etwas zu installieren.
+
 ## Die App auf einen Blick
 
 Kontoauszüge als PDF einlesen, Kassenzettel fotografieren und auf Kategorien aufteilen,
@@ -13,8 +17,8 @@ Darlehen hochrechnen, Nebenkosten je Zähler abrechnen, Liquidität vorausschaue
 |---|---|---|
 | ![Dashboard](docs/demo/bilder/dashboard.jpg) | ![Statistik](docs/demo/bilder/statistik.jpg) | ![Darlehen](docs/demo/bilder/darlehen.jpg) |
 
-Alle gezeigten Zahlen und Namen sind erfunden. Die ausführliche Vorstellung mit allen
-Bereichen gibt es als Seite: **[schlotti73.github.io/Haushaltsfinanzen](https://schlotti73.github.io/Haushaltsfinanzen/demo/)**
+Alle gezeigten Zahlen und Namen sind erfunden. Die ausführliche Vorstellung aller
+Bereiche steht im [Rundgang](https://schlotti73.github.io/Haushaltsfinanzen/demo/)
 (im Repository: [`docs/demo/index.html`](docs/demo/index.html)).
 Den Datensatz dahinter erzeugt `scripts/seed_demo.py` reproduzierbar neu, ohne eine Zeile
 echter Daten; die verwendeten Platzhalter-Namen stehen in
