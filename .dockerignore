@@ -1,0 +1,42 @@
+# Was nicht in den Build-Kontext gehoert. Vor allem: keine Daten.
+#
+# Ohne diese Liste wuerde `docker build` die Entwicklungs-Datenbanken, die
+# Belege und die Release-ZIPs (je ~84 MB) mit zum Daemon schicken - und die
+# COPY-Anweisungen koennten sie ins veroeffentlichte Image aufnehmen. Ein
+# oeffentliches Image mit privaten Kontoauszuegen waere der schlimmste
+# denkbare Fehler dieses Projekts.
+
+.git
+.github
+.docs
+docs
+
+# Daten und Ablagen
+*.db
+*.db-shm
+*.db-wal
+*.db.bak
+db-*/
+dev-db/
+belege/
+kontoauszuege/
+kontoauszug_muster/
+kassenzettel_muster/
+backups/
+logs/
+config/
+updates/
+
+# Pakete und Zwischenstaende
+*.zip
+*.lnk
+frontend/node_modules
+frontend/dist
+backend/static
+backend/.venv
+# Die Sprachdaten laedt der Bau selbst (docker/tessdata_laden.py, Stufe 2).
+# Ausgeschlossen, damit das Image nicht davon abhaengt, was auf dem bauenden
+# Rechner im Ordner liegt - sonst baut es hier anders als im Workflow.
+backend/tessdata/
+**/__pycache__
+*.pyc

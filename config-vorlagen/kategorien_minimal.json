@@ -1,0 +1,53 @@
+{
+  "_hinweis": "Generischer 2-3-stufiger Minimal-Kategorienbaum für neu angelegte Datenbanken. Keine orts-/vertragsspezifischen Blätter. Wird von backend/app/routers/datenbanken.py beim Anlegen einer neuen DB eingelesen.",
+  "kategorien": [
+    { "name": "Einnahmen", "art": "einnahme", "kinder": [
+      { "name": "Gehalt", "art": "einnahme" },
+      { "name": "Mieteinnahme", "art": "einnahme" },
+      { "name": "Sonstige Einnahmen", "art": "einnahme" }
+    ]},
+    { "name": "Wohnen", "art": "ausgabe", "kinder": [
+      { "name": "Miete (Zahlung)", "art": "ausgabe" },
+      { "name": "Nebenkosten", "art": "ausgabe", "kinder": [
+        { "name": "Strom", "art": "ausgabe" },
+        { "name": "Wasser", "art": "ausgabe" },
+        { "name": "Müllabfuhr/Abfallgebühren", "art": "ausgabe" },
+        { "name": "Internet/Telefon", "art": "ausgabe" }
+      ]},
+      { "name": "Instandhaltung", "art": "ausgabe", "kinder": [
+        { "name": "Instandsetzung", "art": "ausgabe" }
+      ]},
+      { "name": "Einrichtung", "art": "ausgabe" },
+      { "name": "Garten", "art": "ausgabe" }
+    ]},
+    { "name": "Versicherungen", "art": "ausgabe", "kinder": [
+      { "name": "Haftpflicht", "art": "ausgabe" },
+      { "name": "Rente", "art": "ausgabe" },
+      { "name": "Versicherung allgemein", "art": "ausgabe" }
+    ]},
+    { "name": "Auto", "art": "ausgabe", "kinder": [
+      { "name": "KFZ-Versicherung", "art": "ausgabe" },
+      { "name": "Reparatur", "art": "ausgabe" },
+      { "name": "Tanken", "art": "ausgabe" }
+    ]},
+    { "name": "Gesundheit", "art": "ausgabe", "kinder": [
+      { "name": "Pflege allgemein", "art": "ausgabe" },
+      { "name": "Rezeptgebühren", "art": "beides" },
+      { "name": "Verhinderungspflege", "art": "beides" },
+      { "name": "Wellness", "art": "ausgabe" }
+    ]},
+    { "name": "Sparen & Tilgung", "art": "ausgabe", "kinder": [
+      { "name": "Darlehen / Tilgung", "art": "ausgabe" },
+      { "name": "Sparrate", "art": "ausgabe" }
+    ]},
+    { "name": "Spende", "art": "ausgabe" },
+    { "name": "Haushaltseinkauf", "art": "ausgabe", "kinder": [
+      { "name": "Lebensmittel", "art": "ausgabe" },
+      { "name": "Drogerie", "art": "ausgabe" },
+      { "name": "Kleidung", "art": "ausgabe" },
+      { "name": "Haushaltswaren", "art": "ausgabe" },
+      { "name": "Essen gehen/liefern", "art": "ausgabe" }
+    ]},
+    { "name": "Sonstiges", "art": "beides" }
+  ]
+}

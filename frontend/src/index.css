@@ -1,0 +1,202 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Helle Belegung: entspricht exakt der bisherigen Tailwind-Palette, der helle
+   Modus sieht also unveraendert aus. */
+:root {
+  --flaeche: #ffffff;
+  --grau-50: #f9fafb;
+  --grau-100: #f3f4f6;
+  --grau-200: #e5e7eb;
+  --grau-300: #d1d5db;
+  --grau-400: #9ca3af;
+  --grau-500: #6b7280;
+  --grau-600: #4b5563;
+  --grau-700: #374151;
+  --grau-800: #1f2937;
+  --grau-900: #111827;
+  --schatten: 0 0 0 / 0.05;
+}
+
+/* Dunkel: die Graustufen sind gespiegelt (50 wird dunkel, 900 hell), damit
+   bg-gray-50 weiter "etwas abgesetzt" und text-gray-500 weiter "gedaempft"
+   bedeutet. Reines Schwarz und reines Weiss werden bewusst vermieden. */
+.dark {
+  --flaeche: #1e2431;
+  --grau-50: #171c26;
+  --grau-100: #222936;
+  --grau-200: #2f3747;
+  --grau-300: #3d4759;
+  --grau-400: #828d9e;
+  --grau-500: #98a2b3;
+  --grau-600: #b4bdc9;
+  --grau-700: #ccd3dd;
+  --grau-800: #e3e8ee;
+  --grau-900: #f3f5f8;
+  color-scheme: dark;
+}
+
+/* Farbige Flaechen, Raender und Schriften im Dunkelmodus. Tailwinds Farbskalen
+   sind auf hellen Untergrund gerechnet: ein bg-green-100 bliebe sonst ein
+   greller Aufkleber auf dunklem Grund, ein text-amber-900 dunkelbraune Schrift
+   darauf. Statt an hunderten Fundstellen eine dark:-Variante zu setzen, werden
+   die tatsaechlich verwendeten Stufen hier einmal gedreht: helle Flaeche wird
+   dunkler Ton, heller Rand wird gedaempfter Rand, dunkle Schrift wird heller
+   Ton. Pro Farbe vier Rollen - Flaeche (50/100), kraeftigere Flaeche (200/300),
+   Rand (100-500) und Schrift (400-900). Wer eine neue Stufe einsetzt, traegt
+   sie unten in der passenden Liste nach. */
+.dark {
+  --ton-blau: #1d3a66;    --ton-blau-stark: #2a548f;    --rand-blau: #39588c;    --schrift-blau: #93c5fd;
+  --ton-rot: #5e2230;     --ton-rot-stark: #7e2d3f;     --rand-rot: #7b3745;     --schrift-rot: #fca5a5;
+  --ton-gruen: #1b4332;   --ton-gruen-stark: #276a4b;   --rand-gruen: #2f6a4e;   --schrift-gruen: #86efac;
+  --ton-amber: #4d3b16;   --ton-amber-stark: #6b521d;   --rand-amber: #6d5526;   --schrift-amber: #fcd34d;
+  --ton-orange: #51330f;  --ton-orange-stark: #70471a;  --rand-orange: #734b20;  --schrift-orange: #fdba74;
+  --ton-teal: #16403f;    --ton-teal-stark: #1f5d5b;    --rand-teal: #2a605e;    --schrift-teal: #5eead4;
+  --ton-sky: #17384f;     --ton-sky-stark: #225475;     --rand-sky: #2d5a7a;     --schrift-sky: #7dd3fc;
+  --ton-violett: #3a2a5c; --ton-violett-stark: #4e3a7d; --rand-violett: #513e7c; --schrift-violett: #c4b5fd;
+}
+
+/* Flaechen */
+.dark .bg-blue-50, .dark .bg-blue-100 { background-color: var(--ton-blau); }
+.dark .bg-blue-200, .dark .bg-blue-300 { background-color: var(--ton-blau-stark); }
+.dark .bg-red-50, .dark .bg-red-100 { background-color: var(--ton-rot); }
+.dark .bg-red-200, .dark .bg-red-300 { background-color: var(--ton-rot-stark); }
+.dark .bg-green-50, .dark .bg-green-100,
+.dark .bg-emerald-50, .dark .bg-emerald-100 { background-color: var(--ton-gruen); }
+.dark .bg-green-200, .dark .bg-green-300 { background-color: var(--ton-gruen-stark); }
+.dark .bg-amber-50, .dark .bg-amber-100,
+.dark .bg-yellow-50, .dark .bg-yellow-100 { background-color: var(--ton-amber); }
+.dark .bg-amber-200, .dark .bg-amber-300,
+.dark .bg-yellow-200, .dark .bg-yellow-300 { background-color: var(--ton-amber-stark); }
+.dark .bg-orange-50, .dark .bg-orange-100 { background-color: var(--ton-orange); }
+.dark .bg-orange-200, .dark .bg-orange-300 { background-color: var(--ton-orange-stark); }
+.dark .bg-teal-50, .dark .bg-teal-100 { background-color: var(--ton-teal); }
+.dark .bg-teal-200, .dark .bg-teal-300 { background-color: var(--ton-teal-stark); }
+.dark .bg-sky-50, .dark .bg-sky-100,
+.dark .bg-cyan-50, .dark .bg-cyan-100 { background-color: var(--ton-sky); }
+.dark .bg-sky-200, .dark .bg-sky-300 { background-color: var(--ton-sky-stark); }
+.dark .bg-purple-50, .dark .bg-purple-100, .dark .bg-violet-50,
+.dark .bg-violet-100, .dark .bg-indigo-50, .dark .bg-indigo-100 { background-color: var(--ton-violett); }
+.dark .bg-purple-200, .dark .bg-violet-200 { background-color: var(--ton-violett-stark); }
+
+/* Raender: die hellen Stufen 100-500 umranden im Hellen eine zarte Flaeche.
+   Unveraendert waeren es im Dunkeln die hellsten Linien der ganzen Seite. */
+.dark .border-blue-100, .dark .border-blue-200, .dark .border-blue-300,
+.dark .border-blue-400, .dark .border-blue-500 { border-color: var(--rand-blau); }
+.dark .border-red-100, .dark .border-red-200, .dark .border-red-300,
+.dark .border-red-400, .dark .border-red-500 { border-color: var(--rand-rot); }
+.dark .border-green-100, .dark .border-green-200, .dark .border-green-300,
+.dark .border-green-400, .dark .border-green-500 { border-color: var(--rand-gruen); }
+.dark .border-amber-100, .dark .border-amber-200, .dark .border-amber-300,
+.dark .border-yellow-100, .dark .border-yellow-200,
+.dark .border-yellow-300 { border-color: var(--rand-amber); }
+.dark .border-orange-100, .dark .border-orange-200,
+.dark .border-orange-300 { border-color: var(--rand-orange); }
+.dark .border-teal-100, .dark .border-teal-200, .dark .border-teal-300 { border-color: var(--rand-teal); }
+.dark .border-sky-100, .dark .border-sky-200, .dark .border-sky-300 { border-color: var(--rand-sky); }
+.dark .border-purple-200, .dark .border-violet-200,
+.dark .border-indigo-200 { border-color: var(--rand-violett); }
+
+/* Schrift */
+.dark .text-blue-400, .dark .text-blue-500, .dark .text-blue-600,
+.dark .text-blue-700, .dark .text-blue-800, .dark .text-blue-900 { color: var(--schrift-blau); }
+.dark .text-red-400, .dark .text-red-500, .dark .text-red-600,
+.dark .text-red-700, .dark .text-red-800, .dark .text-red-900 { color: var(--schrift-rot); }
+.dark .text-green-400, .dark .text-green-500, .dark .text-green-600,
+.dark .text-green-700, .dark .text-green-800, .dark .text-green-900,
+.dark .text-emerald-600, .dark .text-emerald-700, .dark .text-emerald-800 { color: var(--schrift-gruen); }
+.dark .text-amber-500, .dark .text-amber-600, .dark .text-amber-700,
+.dark .text-amber-800, .dark .text-amber-900, .dark .text-yellow-600,
+.dark .text-yellow-700, .dark .text-yellow-800, .dark .text-yellow-900 { color: var(--schrift-amber); }
+.dark .text-orange-500, .dark .text-orange-600, .dark .text-orange-700,
+.dark .text-orange-800, .dark .text-orange-900 { color: var(--schrift-orange); }
+.dark .text-teal-600, .dark .text-teal-700,
+.dark .text-teal-800, .dark .text-teal-900 { color: var(--schrift-teal); }
+.dark .text-sky-500, .dark .text-sky-600, .dark .text-sky-700,
+.dark .text-sky-800, .dark .text-sky-900,
+.dark .text-cyan-600, .dark .text-cyan-700 { color: var(--schrift-sky); }
+.dark .text-purple-500, .dark .text-purple-600, .dark .text-purple-700,
+.dark .text-purple-800, .dark .text-violet-600, .dark .text-violet-700,
+.dark .text-indigo-600, .dark .text-indigo-700 { color: var(--schrift-violett); }
+
+/* Hover- und Fokus-Flaechen: hell gedacht, im Dunkeln sonst ein Blitz. Eigene
+   Regeln noetig, weil .dark .bg-blue-100 den Hover-Selektor nicht trifft. */
+.dark .hover\:bg-gray-50:hover { background-color: var(--grau-100); }
+.dark .hover\:bg-gray-100:hover { background-color: var(--grau-200); }
+.dark .hover\:bg-gray-200:hover { background-color: var(--grau-300); }
+.dark .hover\:bg-blue-50:hover, .dark .focus\:bg-blue-50:focus { background-color: var(--ton-blau); }
+.dark .hover\:bg-blue-100:hover { background-color: var(--ton-blau-stark); }
+.dark .hover\:bg-red-50:hover, .dark .hover\:bg-red-100:hover { background-color: var(--ton-rot); }
+.dark .hover\:bg-green-50:hover, .dark .hover\:bg-green-100:hover { background-color: var(--ton-gruen); }
+.dark .hover\:bg-amber-50:hover, .dark .hover\:bg-amber-100:hover,
+.dark .even\:bg-yellow-50:nth-child(even) { background-color: var(--ton-amber); }
+.dark .hover\:bg-orange-100:hover,
+.dark .hover\:bg-orange-200:hover { background-color: var(--ton-orange-stark); }
+.dark .hover\:bg-sky-200:hover, .dark .hover\:bg-sky-300:hover { background-color: var(--ton-sky-stark); }
+
+/* Hover-Schrift: ohne diese Regeln faellt die Farbe beim Zeigen auf Tailwinds
+   dunkle Stufe zurueck - der Text verschwindet genau dann, wenn man ihn
+   anfasst. */
+.dark .hover\:text-blue-700:hover, .dark .hover\:text-blue-800:hover { color: var(--schrift-blau); }
+.dark .hover\:text-red-600:hover, .dark .hover\:text-red-700:hover,
+.dark .hover\:text-red-800:hover { color: var(--schrift-rot); }
+.dark .hover\:text-green-700:hover, .dark .hover\:text-green-800:hover { color: var(--schrift-gruen); }
+.dark .hover\:border-blue-300:hover { border-color: var(--rand-blau); }
+.dark .hover\:border-gray-300:hover { border-color: var(--grau-300); }
+
+/* Abblenden traegt im Dunkeln weiter: dieselbe Deckkraft, die auf Weiss noch
+   "zurueckgenommen" wirkt, loescht die Schrift auf dunklem Grund fast aus. */
+.dark .opacity-30 { opacity: 0.5; }
+.dark .opacity-40 { opacity: 0.58; }
+.dark .opacity-60 { opacity: 0.78; }
+.dark .opacity-70 { opacity: 0.85; }
+
+/* Navigation ist in beiden Modi dunkel - sie wuerde durch die gespiegelte
+   Graustufen-Palette sonst ausgerechnet im Dunkelmodus hell. Darum feste Werte
+   statt der Variablen. */
+.navflaeche { background-color: #111827; }
+.dark .navflaeche { background-color: #11151d; }
+/* Jeweils das Element selbst und seine Kinder: die mobile Kopfleiste traegt
+   text-white direkt, die Sidebar text-gray-200 - ohne den Selbst-Selektor
+   bliebe die Schrift dort die gespiegelte, also dunkle Graustufe. */
+.navflaeche .border-gray-700, .navflaeche.border-gray-700 { border-color: #374151; }
+.navflaeche .text-white, .navflaeche.text-white, .navflaeche .hover\:text-white:hover { color: #ffffff; }
+.navflaeche .text-gray-200, .navflaeche.text-gray-200 { color: #e5e7eb; }
+.navflaeche .text-gray-300, .navflaeche.text-gray-300 { color: #d1d5db; }
+.navflaeche .text-gray-400, .navflaeche.text-gray-400 { color: #9ca3af; }
+.navflaeche .text-gray-500, .navflaeche.text-gray-500 { color: #6b7280; }
+.navflaeche .hover\:bg-gray-700:hover { background-color: #374151; }
+
+@layer base {
+  /* html mit eigenem Hintergrund: sonst blitzt beim Laden und beim Ueberscrollen
+     die weisse Browserflaeche durch, auch wenn body laengst dunkel ist. */
+  html { @apply bg-gray-50; }
+  body { @apply bg-gray-50 text-gray-900 text-sm; }
+}
+
+@layer components {
+  .btn { @apply inline-flex items-center align-middle gap-1.5 px-3 py-1.5 rounded font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed; }
+  .btn-primary { @apply btn bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500; }
+  .btn-secondary { @apply btn bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 focus:ring-gray-400; }
+  .btn-danger { @apply btn bg-red-600 text-white hover:bg-red-700 focus:ring-red-500; }
+  .btn-sm { @apply px-2 py-1 text-xs; }
+  .btn-icon { @apply w-9 h-9 p-0 shrink-0 items-center justify-center text-base leading-none; }
+  .btn-icon-sm { @apply w-7 h-7 p-0 shrink-0 items-center justify-center text-sm leading-none; }
+  .input { @apply block w-full rounded border border-gray-300 px-3 py-1.5 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500; }
+  .label { @apply block text-xs font-medium text-gray-700 mb-0.5; }
+  .card { @apply bg-white rounded-lg shadow-sm border border-gray-200 p-4; }
+  .badge { @apply inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium; }
+  .badge-green { @apply badge bg-green-100 text-green-800; }
+  .badge-red { @apply badge bg-red-100 text-red-800; }
+  .badge-gray { @apply badge bg-gray-100 text-gray-700; }
+  .badge-blue { @apply badge bg-blue-100 text-blue-800; }
+}
+
+/* Bewusst ausserhalb von @layer components: in der Layer-Kaskade setzt sich die
+   Regel nicht gegen die Browser-Darstellung des Datalist-Pfeils durch.
+   Ohne sie zeigt Chrome/Edge bei Hover und Fokus ein zweites Dreieck neben
+   unserem eigenen Chevron. */
+.input-combobox::-webkit-calendar-picker-indicator {
+  display: none !important;
+}

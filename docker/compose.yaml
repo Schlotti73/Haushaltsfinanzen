@@ -1,0 +1,55 @@
+# Haushaltsfinanz-App auf Docker.
+#
+# Diese Datei und die .env gehoeren dem Betreiber, nicht dem Image: sie
+# ueberleben jedes Update. Das Programm steckt im Image, die Daten liegen unter
+# ./daten - mehr Zustand gibt es nicht.
+#
+#   Start:    docker compose up -d
+#   Log:      docker compose logs -f app      (beim ersten Start das Passwort!)
+#   Update:   docker compose pull && docker compose up -d
+#
+# Vollstaendige Anleitung inkl. Rollback und Reverse-Proxy: docs/docker.md
+
+services:
+  app:
+    image: ${IMAGE:-ghcr.io/schlotti73/haushaltsfinanz}:${TAG:-latest}
+    container_name: haushaltsfinanz
+    restart: unless-stopped
+    # Der Container schreibt in ./daten; die Dateien gehoeren danach diesem
+    # Benutzer. 1000:1000 ist auf Debian und Ubuntu der erste angelegte Mensch.
+    user: "${PUID:-1000}:${PGID:-1000}"
+    environment:
+      TZ: ${TZ:-Europe/Berlin}
+      # Ohne eigenen Schluessel laufen alle Sitzungen mit der Vorgabe aus dem
+      # Quelltext - jeder, der sie kennt, koennte sich ein gueltiges
+      # Sitzungs-Cookie bauen. Einmal erzeugen: openssl rand -hex 32
+      FINANZ_SECRET_KEY: ${FINANZ_SECRET_KEY:?FINANZ_SECRET_KEY fehlt - bitte .env anlegen}
+    volumes:
+      - ./daten:/daten
+    ports:
+      - "${PORT:-8000}:8000"
+
+  # Loest das naechtliche Backup aus - das, was auf Windows die
+  # Aufgabenplanung macht. Abschalten laesst es sich in der Oberflaeche
+  # (Einstellungen -> Backup), der Container darf dabei laufen bleiben.
+  backup:
+    image: ${IMAGE:-ghcr.io/schlotti73/haushaltsfinanz}:${TAG:-latest}
+    container_name: haushaltsfinanz-backup
+    restart: unless-stopped
+    user: "${PUID:-1000}:${PGID:-1000}"
+    command: ["backup-daemon"]
+    # Der Healthcheck des Images fragt /api/health - in diesem Container
+    # horcht aber niemand auf Port 8000. Ohne das Abschalten stuende hier auf
+    # Dauer "unhealthy", und ein echter Ausfall ginge in dieser Falschmeldung
+    # unter.
+    healthcheck:
+      disable: true
+    environment:
+      TZ: ${TZ:-Europe/Berlin}
+      # Auch der Backup-Prozess liest app.config, und die verlangt den
+      # Schluessel - benutzt wird er hier nicht.
+      FINANZ_SECRET_KEY: ${FINANZ_SECRET_KEY:?FINANZ_SECRET_KEY fehlt - bitte .env anlegen}
+    volumes:
+      - ./daten:/daten
+    depends_on:
+      - app

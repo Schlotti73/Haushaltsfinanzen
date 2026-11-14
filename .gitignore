@@ -1,0 +1,102 @@
+# Datenbanken: keine SQLite-Datei gehoert ins Repository - weder die
+# Entwicklungs- noch die Produktiv-DB, egal unter welchem Namen oder Pfad.
+# db/schema.sql bleibt versioniert (keine .db-Datei).
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.db.bak
+*.sqlite
+*.sqlite3
+
+# Zugangsdaten fuer die Update-Pruefung (Personal Access Token des privaten
+# Repositorys). Im Betrieb liegt die Datei unter ProgramData, in der
+# Entwicklung hier - in beiden Faellen gehoert sie nicht ins Repository.
+config/update.json
+
+# Zusaetzliche Datenbanken der Mehrfach-DB-Verwaltung
+/databases/
+
+# Laufzeiteinstellungen dieses Rechners: datenbanken.json, server.json und
+# backup.json enthalten absolute Pfade. Alle drei haben Vorgaben im Code und
+# werden beim ersten Schreiben selbst angelegt - ein frischer Clone braucht sie
+# nicht. Dieselbe Begruendung wie beim Release-Paket, das config\ bewusst
+# auslaesst (siehe scripts/prod/create_prod_zip.ps1). Die Saat-Daten liegen
+# unter config-vorlagen/ und bleiben versioniert.
+/config/
+
+# Arbeitsunterlagen fuer Claude: Architekturnotizen zu den einzelnen Modulen.
+# Sie beschreiben Innenleben und Stolperfallen und sind beim Entwickeln hier
+# nuetzlich - veroeffentlicht gehoeren sie nicht. Sie liegen weiter unter
+# .claude/skills/ und wirken dort unveraendert.
+/.claude/skills/
+
+# Dev-Server-Konfiguration fuer die Vorschau: enthaelt absolute Pfade auf das
+# venv dieses Rechners.
+/.claude/launch.json
+
+# Arbeitsunterlagen: Projektplaene, Screenshots, echte Kontoauszuege, Scans.
+# Material fuer die Entwicklung, nicht Teil der Anwendung - und teils mit
+# echten Bankdaten. Die versionierte Doku steht in docs/.
+/.docs/
+
+# Belege (Kassenzettel-Fotos etc.)
+/belege/
+
+# Archiv der importierten Kontoauszuege (echte Bankdaten)
+/kontoauszuege/
+
+# Kontoauszug-Muster: echte Beispiel-PDFs + gerenderte Screenshots
+/kontoauszug_muster/
+
+# Kassenzettel-Muster: Beispiel-Belegfotos + gerenderte Vorschauen
+/kassenzettel_muster/
+
+# Laufzeit-Logs
+/logs/
+*.log
+
+# Frontend-Build (wird aus frontend/ erzeugt: vite build)
+/backend/static/
+
+# Backups
+/backups/
+
+# Release-Pakete. create_prod_zip.ps1 legt sie ohne -OutputDir im Projektstamm
+# ab, rund 80 MB je Stueck. Sie gehoeren ins oeffentliche Release-Repository
+# (siehe docs/betrieb.md), nicht hierher - ein unbedachtes "git add ." wuerde
+# sie sonst mitnehmen.
+/Haushaltsfinanz_*.zip
+
+# Vom Update-Download abgelegte Pakete (in der Entwicklung liegt der
+# Datenordner im Projektstamm, im Betrieb unter ProgramData)
+/updates/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Editor
+.vscode/
+.idea/
+
+# OCR-Sprachdaten (große Binärdateien, siehe docs/ocr-setup.md)
+/backend/tessdata/
+
+# Dienst-Wrapper (WinSW) und erzeugte Dienstbeschreibung: Binaerdatei bzw.
+# maschinenspezifische Pfade, werden von install_service.ps1 angelegt
+/scripts/prod/Haushaltsfinanzen.exe
+/scripts/prod/Haushaltsfinanzen.xml
+/scripts/prod/winsw.exe
+/scripts/prod/WinSW-x64.exe
+/scripts/prod/Haushaltsfinanz.xml
+
+# Dev-Kopien der Datenbank (siehe scripts/dev/copy_prod_db.ps1)
+/dev-db/
+
+# Windows-Verknuepfungen, die beim Arbeiten im Projektordner entstehen. Sie
+# gehoeren niemandem ausser dem jeweiligen Rechner - und sie blockieren sonst
+# den Paketbau, der ein sauberes Arbeitsverzeichnis verlangt.
+*.lnk

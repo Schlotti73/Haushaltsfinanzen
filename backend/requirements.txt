@@ -1,0 +1,22 @@
+fastapi==0.115.6
+uvicorn[standard]==0.32.1
+sqlalchemy==2.0.36
+alembic==1.14.0
+bcrypt==4.2.1
+python-multipart==0.0.20
+pydantic==2.10.4
+pydantic-settings==2.7.0
+itsdangerous==2.2.0
+aiofiles==24.1.0
+python-dateutil==2.9.0.post0
+openpyxl==3.1.5
+pdfplumber==0.11.4
+# Wird direkt genutzt (services/pdf_import/render.py), kam bisher nur
+# transitiv ueber pdfplumber mit.
+pillow==12.2.0
+pypdfium2==5.9.0
+pytesseract==0.3.13
+opencv-python-headless==4.13.0.92
+numpy==2.4.6
+pyotp==2.10.0
+segno==1.6.6

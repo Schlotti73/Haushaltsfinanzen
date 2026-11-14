@@ -1,0 +1,98 @@
+# Baut das Container-Image und veroeffentlicht es - aber nur, wenn es laeuft.
+#
+# Ausgeloest vom Versions-Tag, demselben, aus dem auch das Windows-Paket seine
+# Nummer zieht (scripts/prod/create_prod_zip.ps1). Beide Wege tragen damit
+# dieselbe Version, und die Meldung "v1.5.0 ist verfuegbar" kann nicht fuer die
+# eine Plattform stimmen und fuer die andere nicht.
+#
+# Reihenfolge mit Absicht: bauen, *dann* rauchtesten, erst dann pushen. Ein
+# Image, das den Erststart nicht schafft, erreicht die Registry nicht - und
+# niemanden, der es sonst als erstes gefunden haette.
+
+name: Docker-Image
+
+on:
+  push:
+    tags:
+      - "v*"
+  # Zum Ausprobieren ohne Tag: baut und testet, veroeffentlicht aber nur, wenn
+  # "veroeffentlichen" ausdruecklich auf true steht.
+  workflow_dispatch:
+    inputs:
+      veroeffentlichen:
+        description: "Image nach dem Test nach ghcr.io pushen"
+        type: boolean
+        default: false
+
+
+jobs:
+  bauen:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Version und Bildname bestimmen
+        id: version
+        run: |
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            echo "wert=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "wert=dev-$(date +%Y%m%d)-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+          fi
+          # Registry-Namen muessen klein geschrieben sein, der Kontoname auf
+          # GitHub darf Grossbuchstaben haben ("Schlotti73"). Ungeprueft
+          # scheitert der Bau mit "repository name must be lowercase" - und
+          # zwar erst beim Exportieren, nach allen teuren Schritten.
+          echo "image=ghcr.io/$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')/haushaltsfinanz" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      # load statt push: das Image geht erst in den lokalen Daemon, damit der
+      # Rauchtest es starten kann. Veroeffentlicht wird es weiter unten.
+      - name: Bauen
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile
+          load: true
+          tags: ${{ steps.version.outputs.image }}:${{ steps.version.outputs.wert }}
+          build-args: |
+            VERSION=${{ steps.version.outputs.wert }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Rauchtest
+        run: ./docker/rauchtest.sh "${{ steps.version.outputs.image }}:${{ steps.version.outputs.wert }}"
+
+      - name: Bei ghcr.io anmelden
+        if: github.ref_type == 'tag' || inputs.veroeffentlichen
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Veroeffentlichen
+        if: github.ref_type == 'tag' || inputs.veroeffentlichen
+        run: |
+          docker push "${{ steps.version.outputs.image }}:${{ steps.version.outputs.wert }}"
+          # latest nur fuer echte Releases: ein Testlauf darf nicht das sein,
+          # was neue Installationen ohne Tag-Angabe ziehen.
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            docker tag "${{ steps.version.outputs.image }}:${{ steps.version.outputs.wert }}" "${{ steps.version.outputs.image }}:latest"
+            docker push "${{ steps.version.outputs.image }}:latest"
+          fi
+
+      - name: Zusammenfassung
+        run: |
+          {
+            echo "### Image veroeffentlicht"
+            echo ""
+            echo '```'
+            echo "docker pull ${{ steps.version.outputs.image }}:${{ steps.version.outputs.wert }}"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,43 @@
+{
+  "_hinweis": "Saat-Daten fuer eine frische Datenbank. 'konten_mapping' legt scripts/init_db.py als Konten an; 'klasse_mapping' ordnet die Werte einer Klassen-Spalte auf Kategorie und optional Tag/Projekt zu und dient als Vorlage fuer eigene Importe. Alle Namen sind Platzhalter und gehoeren vor der ersten Einrichtung an die eigenen angepasst. 'kategorie' muss in kategorien.json existieren.",
+  "klasse_mapping": {
+    "Sonstiges":            { "kategorie": "Sonstiges" },
+    "Nebenkosten":          { "kategorie": "Nebenkosten", "tag_aus_info": true },
+    "Haus":                 { "kategorie": "Instandhaltung", "projekt": "Haus" },
+    "Person 1":             { "kategorie": "Person", "tag": "Person 1" },
+    "Auto":                 { "kategorie": "Auto" },
+    "Gehalt":               { "kategorie": "Gehalt" },
+    "Rente":                { "kategorie": "Riester / Vorsorge" },
+    "Miete":                { "kategorie": "Mieteinnahme", "hinweis": "Mieteingang; Ausgaben-Miete ggf. manuell auf 'Miete (Zahlung)' umstellen" },
+    "Rezeptgebühren":       { "kategorie": "Rezeptgebühren" },
+    "Versicherung":         { "kategorie": "Versicherung allgemein" },
+    "Spende":               { "kategorie": "Spende" },
+    "Ort 1":                { "kategorie": "Sonstiges", "projekt": "Ort 1" },
+    "Garten":               { "kategorie": "Garten" },
+    "Verhinderungspflege":  { "kategorie": "Verhinderungspflege" },
+    "Darlehen":             { "kategorie": "Darlehen / Tilgung" },
+    "Pflege":               { "kategorie": "Pflege allgemein" },
+    "Einrichtung":          { "kategorie": "Einrichtung" },
+    "Person 2":             { "kategorie": "Person", "tag": "Person 2" },
+    "Instandsetzung":       { "kategorie": "Instandhaltung", "tag": "Instandsetzung" },
+    "Haushalt":             { "kategorie": "Haushaltseinkauf" },
+    "Wartung":              { "kategorie": "Instandhaltung", "tag": "Wartung" },
+    "Ort 2":                { "kategorie": "Sonstiges", "projekt": "Ort 2" },
+    "Anschluss":            { "kategorie": "Sonstiges", "projekt": "Neubau" },
+    "Bau":                  { "kategorie": "Sonstiges", "projekt": "Neubau" },
+    "Grundstück":           { "kategorie": "Sonstiges", "projekt": "Neubau" },
+    "Pflegegeld":           { "kategorie": "Pflegegeld" },
+    "Fahrtkosten":          { "kategorie": "Auto", "tag": "Fahrtkosten" },
+    "Kleinkredit":          { "kategorie": "Darlehen / Tilgung", "tag": "Kleinkredit" },
+    "Riester":              { "kategorie": "Riester / Vorsorge" },
+    "Streaming":            { "kategorie": "Sonstiges", "tag": "Streaming" },
+    "Gemeinde":             { "kategorie": "Sonstiges", "tag": "Gemeinde" }
+  },
+  "konten_mapping": {
+    "Girokonto 1": { "typ": "giro",  "bank": "Bank 1" },
+    "Girokonto 2": { "typ": "giro",  "bank": "Bank 2" },
+    "Sparkonto 1": { "typ": "spar",  "bank": "Bank 1" },
+    "Sparkonto 2": { "typ": "spar",  "bank": "Bank 2" },
+    "Depot":       { "typ": "depot", "bank": "Bank 2" }
+  }
+}

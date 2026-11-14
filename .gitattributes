@@ -1,0 +1,22 @@
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# Stapelverarbeitungsdateien immer mit CRLF auschecken, unabhaengig von der
+# lokalen core.autocrlf-Einstellung. cmd.exe stolpert bei reinen LF-Zeilenenden
+# ueber Bloecke wie "if not exist (...)", und update.cmd wie setup.cmd haengen
+# davon ab. Im Index bleiben sie wie alles andere LF-normalisiert.
+*.cmd text eol=crlf
+
+# Shell-Skripte immer mit LF auschecken. Das Entrypoint-Skript des Containers
+# wird unter Windows bearbeitet, aber von /bin/sh im Image gelesen: mit CRLF
+# haengt an der ersten Zeile ein \r, und der Kernel sucht einen Interpreter
+# namens "/bin/sh\r" - der Container startet dann mit "exec format error" bzw.
+# "no such file or directory", ohne dass die Meldung den Grund nennt.
+*.sh text eol=lf
+
+# Aus demselben Grund alles, was im Container landet oder ihn beschreibt. Ein
+# Dockerfile mit CRLF nimmt das Wagenruecklauf-Zeichen in ENV-Werte und
+# RUN-Befehle mit, und die compose.yaml wird auf dem Zielrechner gelesen,
+# nicht hier. Billiger, es hier festzulegen, als es dort zu suchen.
+docker/** text eol=lf
+.dockerignore text eol=lf

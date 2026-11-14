@@ -1,0 +1,66 @@
+{
+  "_hinweis": "Kategorie-Baum (zweistufig). 'art': einnahme | ausgabe | beides. Untergruppen unter 'kinder'. Wird von scripts/init_db.py eingelesen.",
+  "kategorien": [
+    {
+      "name": "Einnahmen",
+      "art": "einnahme",
+      "kinder": [
+        { "name": "Gehalt", "art": "einnahme" },
+        { "name": "Mieteinnahme", "art": "einnahme" },
+        { "name": "Pflegegeld", "art": "einnahme" },
+        { "name": "Sonstige Einnahmen", "art": "einnahme" }
+      ]
+    },
+    {
+      "name": "Wohnen",
+      "art": "ausgabe",
+      "kinder": [
+        { "name": "Nebenkosten", "art": "ausgabe" },
+        { "name": "Instandhaltung", "art": "ausgabe" },
+        { "name": "Einrichtung", "art": "ausgabe" },
+        { "name": "Garten", "art": "ausgabe" },
+        { "name": "Miete (Zahlung)", "art": "ausgabe" }
+      ]
+    },
+    {
+      "name": "Versicherungen",
+      "art": "ausgabe",
+      "kinder": [
+        { "name": "Versicherung allgemein", "art": "ausgabe" },
+        { "name": "Riester / Vorsorge", "art": "ausgabe" }
+      ]
+    },
+    { "name": "Auto", "art": "ausgabe" },
+    {
+      "name": "Pflege",
+      "art": "ausgabe",
+      "kinder": [
+        { "name": "Pflege allgemein", "art": "ausgabe" },
+        { "name": "Rezeptgebühren", "art": "ausgabe" },
+        { "name": "Verhinderungspflege", "art": "ausgabe" }
+      ]
+    },
+    {
+      "name": "Sparen & Tilgung",
+      "art": "ausgabe",
+      "kinder": [
+        { "name": "Darlehen / Tilgung", "art": "ausgabe" },
+        { "name": "Sparrate", "art": "ausgabe" }
+      ]
+    },
+    { "name": "Spende", "art": "ausgabe" },
+    { "name": "Person", "art": "beides" },
+    {
+      "name": "Haushaltseinkauf",
+      "art": "ausgabe",
+      "kinder": [
+        { "name": "Lebensmittel", "art": "ausgabe" },
+        { "name": "Drogerie", "art": "ausgabe" },
+        { "name": "Kleidung", "art": "ausgabe" },
+        { "name": "Haushaltswaren", "art": "ausgabe" },
+        { "name": "Sonstiges Einkauf", "art": "ausgabe" }
+      ]
+    },
+    { "name": "Sonstiges", "art": "beides" }
+  ]
+}
