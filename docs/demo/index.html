@@ -157,6 +157,10 @@
   footer.fuss { border-top: 1px solid var(--rand); background: var(--flaeche); }
   footer.fuss .innen { padding-block: 28px 36px; }
   footer.fuss p { font-size: 0.875rem; color: var(--text-leise); }
+  /* Die Seite hatte bis hierhin keinen einzigen Verweis. Wer ueber das README
+     kommt, findet sonst keinen Weg zurueck zum Quelltext. */
+  footer.fuss .wege { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 8px 20px; }
+  footer.fuss a { color: var(--akzent); font-size: 0.875rem; }
 </style>
 </head>
 <body>
@@ -440,6 +444,12 @@
       Privates Projekt, kein Produkt. Die Anwendung läuft im eigenen Heimnetz; diese Seite
       zeigt sie mit erfundenen Daten.
     </p>
+    <nav class="wege">
+      <a href="https://github.com/Schlotti73/Haushaltsfinanzen">Quelltext auf GitHub</a>
+      <a href="https://github.com/Schlotti73/Haushaltsfinanz-Releases/releases/latest">Paket herunterladen</a>
+      <a href="https://github.com/Schlotti73/Haushaltsfinanzen/blob/main/docs/betrieb.md">Einrichten und Betrieb</a>
+      <a href="https://github.com/Schlotti73/Haushaltsfinanzen/blob/main/LICENSE">MIT-Lizenz</a>
+    </nav>
   </div>
 </footer>
 
