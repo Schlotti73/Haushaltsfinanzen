@@ -44,7 +44,7 @@ python scripts/init_db.py --force    # neu erzeugen (überschreibt)
 
 ## Status
 
-Im täglichen Einsatz, aktuelle Fassung v0.2.5. Die 15 Phasen des
+Im täglichen Einsatz, aktuelle Fassung v0.2.6. Die 15 Phasen des
 [Phasenplans](docs/phasenplan.md) sind abgeschlossen; was dabei entstanden ist:
 
 | Bereich | Stand |
