@@ -167,12 +167,24 @@ Write-Host ""
 Write-Host "  Erforderliche Komponenten:" -ForegroundColor Yellow
 Write-Host ""
 
+# winget wird nur gebraucht, wenn wirklich etwas nachzuinstallieren ist -
+# beide Aufrufe weiter unten stehen hinter einer Bedingung. Auf einem Rechner,
+# der Python und Tesseract schon hat, darf sein Fehlen darum nichts blockieren:
+# dort laeuft das Setup ohne ihn sauber durch. Das ist die Lage auf einem
+# Windows Server (kein Microsoft Store) und auf jedem Rechner, auf dem schon
+# einmal installiert wurde.
+$wingetNoetig = (-not $pyZielExe) -or (-not (Test-Path $tessExe))
+$wingetDa     = [bool](Cmd "winget")
+
 $components = [ordered]@{
     "Python $pyZiel"    = @{ OK = [bool]$pyZielExe;  Aktion = "winget install $pyWinget" }
     "Tesseract-OCR"     = @{ OK = Test-Path $tessExe; Aktion = "winget install UB-Mannheim.TesseractOCR" }
-    "Tesseract-Deutsch" = @{ OK = Test-Path $deuData; Aktion = "fehlt im Paket (Abbruch)" }
-    "Dienst-Wrapper"    = @{ OK = $winswDa;           Aktion = "WinSW von GitHub laden" }
 }
+if ($wingetNoetig) {
+    $components["App Installer (winget)"] = @{ OK = $wingetDa; Aktion = "aus dem Microsoft Store (Abbruch)" }
+}
+$components["Tesseract-Deutsch"] = @{ OK = Test-Path $deuData; Aktion = "fehlt im Paket (Abbruch)" }
+$components["Dienst-Wrapper"]    = @{ OK = $winswDa;           Aktion = "WinSW von GitHub laden" }
 # Node.js steht hier bewusst nicht mehr: das Frontend ist im Paket vorgebaut.
 
 foreach ($name in $components.Keys) {
@@ -213,6 +225,28 @@ Write-Host ""
 
 if (-not $components["Tesseract-Deutsch"].OK) {
     Abort "deu.traineddata fehlt im Paket (erwartet: $deuData). Paket neu erstellen."
+}
+
+# Hier und nicht erst beim Aufruf: ohne winget bricht die Installation sonst
+# mitten im Lauf mit einer Ausnahme ueber ein unbekanntes Kommando ab - nach
+# der Zustimmung und mit halb angelegten Ordnern. Was ohnehin scheitert, soll
+# scheitern, bevor der Benutzer zugestimmt hat.
+if ($wingetNoetig -and -not $wingetDa) {
+    $fehlt = @()
+    if (-not $pyZielExe)            { $fehlt += "Python $pyZiel" }
+    if (-not (Test-Path $tessExe))  { $fehlt += "Tesseract-OCR" }
+    Abort @"
+winget (App Installer) fehlt - damit laesst sich $($fehlt -join " und ") nicht
+  nachinstallieren.
+
+  Abhilfe, einer der beiden Wege:
+    - "App Installer" aus dem Microsoft Store installieren
+    - winget-cli von https://github.com/microsoft/winget-cli/releases laden
+      (die Datei *.msixbundle, per Doppelklick installieren)
+
+  Oder $($fehlt -join " und ") von Hand installieren und setup.cmd erneut
+  starten - das Setup ueberspringt, was es bereits vorfindet.
+"@
 }
 
 if (-not $Unbeaufsichtigt) {

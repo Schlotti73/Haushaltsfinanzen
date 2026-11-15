@@ -194,10 +194,14 @@ export default function UpdateBereich() {
                 Paket {dl.version} liegt bereit – die Prüfsumme stimmt.
               </div>
               <div className="text-xs text-gray-600 break-all">{dl.pfad}</div>
-              {/* Der Starter ist der bequeme Weg, der Konsolenbefehl bleibt
-                  daneben stehen: Installationen von vor dem Starter haben ihn
-                  noch nicht (dann ist dl.starter leer), und für Fernwartung
-                  und Fehlersuche ist die Konsole weiterhin der richtige Ort. */}
+              {/* Drei Wege, absteigend bequem. Der erzeugte Starter im
+                  Programmordner ist der Normalfall. Fehlt er – nach einem
+                  Rollback auf eine Fassung von vor dem Starter –, tut es die
+                  update.cmd aus dem Paket, auf die man die ZIP zieht; leer
+                  doppelklicken darf man sie nicht, sie nähme sonst die
+                  laufende Version als Quelle. Die Konsole steht in jedem Fall
+                  daneben: für Fernwartung und Fehlersuche bleibt sie der
+                  richtige Ort. */}
               <div>
                 {dl.starter ? (
                   <>
@@ -207,6 +211,21 @@ export default function UpdateBereich() {
                     </div>
                     <code className="block bg-gray-900 text-gray-100 rounded px-3 py-2 text-xs break-all">
                       {dl.starter}
+                    </code>
+                    <div className="text-xs text-gray-400 mt-2 break-all">
+                      Oder in einer Administrator-PowerShell im Ordner <code>scripts\prod</code>:{' '}
+                      {dl.befehl}
+                    </div>
+                  </>
+                ) : dl.paket_cmd ? (
+                  <>
+                    <div className="text-xs text-gray-600 mb-1">
+                      Installieren ohne Konsole: die Paketdatei oben auf diese Datei ziehen – die
+                      Administratorrechte fragt sie selbst ab. Der Dienst wird dabei kurz gestoppt.
+                      Einfaches Doppelklicken genügt hier nicht.
+                    </div>
+                    <code className="block bg-gray-900 text-gray-100 rounded px-3 py-2 text-xs break-all">
+                      {dl.paket_cmd}
                     </code>
                     <div className="text-xs text-gray-400 mt-2 break-all">
                       Oder in einer Administrator-PowerShell im Ordner <code>scripts\prod</code>:{' '}

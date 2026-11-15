@@ -71,6 +71,7 @@ _download: dict = {
     "pfad": "",
     "befehl": "",
     "starter": "",
+    "paket_cmd": "",
     "fehler": "",
 }
 _download_lock = threading.Lock()
@@ -278,8 +279,22 @@ def status(erzwingen: bool = False) -> dict:
 # ── Download ────────────────────────────────────────────────────────────────
 
 def download_status() -> dict:
+    """Der Stand des Downloads - samt dem Weg, ihn einzuspielen.
+
+    `befehl` und `starter` werden hier bestimmt und nicht beim Download:
+    sie beschreiben den *Rechner*, nicht die geladene Datei. Eingefroren
+    zeigte die Oberflaeche sonst den Stand von damals - etwa den Konsolenweg,
+    obwohl der Doppelklick-Starter seither angelegt wurde (update.ps1 legt ihn
+    am Ende jedes Updates an). Genau so trat es auf einer Installation auf,
+    die den Starter erst mit dem naechsten Update bekam.
+    """
     with _download_lock:
-        return dict(_download)
+        stand = dict(_download)
+    if stand["pfad"]:
+        stand["befehl"] = _befehl_fuer(Path(stand["pfad"]))
+        stand["starter"] = starter_pfad()
+        stand["paket_cmd"] = paket_cmd_pfad() if not stand["starter"] else ""
+    return stand
 
 
 def _setze(**felder) -> None:
@@ -321,6 +336,29 @@ def starter_pfad() -> str:
     starter = programm.parent.parent / "update.cmd"
     try:
         return str(starter) if starter.is_file() else ""
+    except OSError:
+        return ""
+
+
+def paket_cmd_pfad() -> str:
+    """Die `update.cmd` aus dem Paket: `<Programm>\\current\\scripts\\prod\\update.cmd`.
+
+    Der Ausweg, wenn der erzeugte Starter im Programmordner fehlt - etwa nach
+    einem Rollback auf eine Fassung von vor dem Starter. Diese Datei liegt in
+    jedem Paket. Doppelklicken darf man sie allerdings nicht: ohne Argument
+    nimmt sie ihren eigenen Paketstamm als Quelle, also die *laufende*
+    Version. Ein mitgegebener Pfad gewinnt dagegen immer - die ZIP darauf zu
+    ziehen ist darum der richtige Weg.
+
+    Angegeben wird sie ueber `current\\`, nicht ueber den Versionsordner: so
+    bleibt der Pfad auch nach dem Update gueltig.
+    """
+    programm = programm_dir()
+    if programm.parent.name.lower() != "versionen":
+        return ""
+    cmd = programm.parent.parent / "current" / "scripts" / "prod" / "update.cmd"
+    try:
+        return str(cmd) if cmd.is_file() else ""
     except OSError:
         return ""
 
@@ -405,8 +443,8 @@ def _lade(release: dict, token: str) -> None:
         ziel.unlink(missing_ok=True)
         teil.replace(ziel)
         _raeume_auf(ziel)
-        _setze(status="fertig", pfad=str(ziel), befehl=_befehl_fuer(ziel),
-               starter=starter_pfad(), fehler="")
+        # befehl und starter setzt download_status() bei jeder Abfrage frisch.
+        _setze(status="fertig", pfad=str(ziel), fehler="")
     except Exception as err:  # noqa: BLE001
         teil.unlink(missing_ok=True)
         _setze(status="fehler", fehler=fehlertext(err))

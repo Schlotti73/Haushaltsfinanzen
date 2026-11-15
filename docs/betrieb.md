@@ -8,6 +8,7 @@
 | Node.js | 20+ | ✓ | – | nur für den Frontend-Build; das Paket bringt `frontend/dist` fertig mit |
 | Tesseract-OCR | 5+ | ✓ | ✓ | per winget, Sprachdaten liegen im Paket |
 | WinSW | 2.12 | – | ✓ | Dienst-Wrapper, wird beim Setup von GitHub geladen |
+| App Installer (`winget`) | – | – | (✓) | nur nötig, solange Python oder Tesseract fehlen; sonst wird er nie aufgerufen |
 | Git | beliebig | ✓ | – | die Versionsnummer kommt aus den Tags |
 | SQLite | (via Python) | ✓ | ✓ | keine separate Installation nötig |
 
@@ -172,6 +173,13 @@ Pfade mit Leerzeichen gehören in Anführungszeichen – aber **ohne**
 abschließenden Backslash. `"D:\Meine Apps\HF\"` kommt als `D:\Meine Apps\HF"`
 an, weil der Backslash das Anführungszeichen aufhebt; `NormalisierePfad`
 schneidet das inzwischen ab, schöner ist es trotzdem ohne.
+
+Fehlt `winget`, bricht das Setup ab, **bevor** es etwas anfasst – aber nur,
+wenn Python oder Tesseract tatsächlich fehlen. Liegt beides schon vor, läuft es
+auch ohne App Installer durch; das ist die Lage auf einem Windows Server ohne
+Microsoft Store. Die Meldung nennt beide Bezugswege (Store und das
+`.msixbundle` von `microsoft/winget-cli`) sowie den Ausweg, Python und
+Tesseract von Hand zu installieren und `setup.cmd` erneut zu starten.
 
 Das Setup installiert per winget **Python 3.11** und **Tesseract-OCR**, lädt
 WinSW, kopiert das Paket nach `versionen\<version>\`, baut die Python-Umgebung

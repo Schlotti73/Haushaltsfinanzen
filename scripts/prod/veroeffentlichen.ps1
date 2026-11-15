@@ -30,7 +30,10 @@ param(
     # Committer stehen bei GitHub offen in jedem Commit - an einer Stelle, die
     # keine Dateipruefung je zu sehen bekommt. Die noreply-Adresse von GitHub
     # weist den Commit demselben Konto zu, ohne die Adresse zu nennen.
-    [string]$Absender = "Schlotti73 <281000650+Schlotti73@users.noreply.github.com>"
+    [string]$Absender = "Schlotti73 <281000650+Schlotti73@users.noreply.github.com>",
+    # Das Repository der Release-Pakete. Es traegt keinen Baum, nur Releases -
+    # seine README wird darum ueber die API geschrieben, nicht gepusht.
+    [string]$ReleaseRepo = "Schlotti73/Haushaltsfinanz-Releases"
 )
 
 $ErrorActionPreference = "Stop"
@@ -43,6 +46,73 @@ function Step([string]$msg) {
 function Abort([string]$msg) {
     Write-Host "`nFEHLER: $msg" -ForegroundColor Red
     exit 1
+}
+
+# Die README des Release-Repositories abgleichen.
+#
+# Sie ist der einzige veroeffentlichte Text, der nicht im Baum steht: das
+# Release-Repository hat keinen, es traegt nur die ZIPs. Von Hand drueben
+# geschrieben liefe sie an der Inhaltspruefung vorbei - und gerade eine
+# Anleitung zieht Beispiele an, in denen Pfade und Namen stecken. Die Quelle
+# liegt deshalb hier (docs\release-repo-readme.md), wird mitgeprueft und von
+# hier aus ueber die API hinuebergeschrieben.
+#
+# Ein Fehlschlag ist ein Hinweis und kein Abbruch: die Veroeffentlichung
+# selbst ist zu diesem Zeitpunkt gelaufen, und ein rotes Ende wuerde das
+# Gegenteil behaupten.
+function ReleaseReadme([switch]$NurZeigen) {
+    $quelle = Join-Path $root "docs\release-repo-readme.md"
+    if (-not (Test-Path $quelle)) {
+        Write-Host "`n  Hinweis: $quelle fehlt - README von $ReleaseRepo unveraendert." -ForegroundColor DarkYellow
+        return
+    }
+    if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
+        Write-Host "`n  Hinweis: gh fehlt - README von $ReleaseRepo nicht abgeglichen." -ForegroundColor DarkYellow
+        return
+    }
+
+    # Zeilenenden spielen keine Rolle und wuerden sonst bei jedem Lauf eine
+    # Aenderung vortaeuschen.
+    $neu = ([IO.File]::ReadAllText($quelle) -replace "`r`n", "`n")
+    $alt = ""
+    $sha = ""
+    $roh = gh api "repos/$ReleaseRepo/contents/README.md" 2>$null
+    if ($LASTEXITCODE -eq 0 -and $roh) {
+        try {
+            $o   = ($roh -join "") | ConvertFrom-Json
+            $sha = $o.sha
+            $alt = [Text.Encoding]::UTF8.GetString(
+                       [Convert]::FromBase64String(($o.content -replace "\s", ""))) -replace "`r`n", "`n"
+        } catch {
+            Write-Host "`n  Hinweis: README von $ReleaseRepo nicht lesbar ($_)." -ForegroundColor DarkYellow
+            return
+        }
+    }
+
+    if ($alt -eq $neu) {
+        Write-Host "`n  README von ${ReleaseRepo}: unveraendert." -ForegroundColor DarkGray
+        return
+    }
+    if ($NurZeigen) {
+        $was = if ($sha) { "aktualisiert" } else { "angelegt" }
+        Write-Host "  README von $ReleaseRepo wuerde $was." -ForegroundColor Yellow
+        return
+    }
+
+    Step "Schreibe README nach $ReleaseRepo..."
+    $b64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($neu))
+    # Nicht $args nennen: das ist in PowerShell eine automatische Variable.
+    $ghArgs = @("api", "--method", "PUT", "repos/$ReleaseRepo/contents/README.md",
+                "-f", "message=README: Stand aus docs/release-repo-readme.md",
+                "-f", "content=$b64")
+    if ($sha) { $ghArgs += @("-f", "sha=$sha") }
+    & gh @ghArgs *> $null
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "  Hinweis: README konnte nicht geschrieben werden - von Hand nachziehen." -ForegroundColor DarkYellow
+        Write-Host "    https://github.com/$ReleaseRepo/blob/main/README.md" -ForegroundColor DarkYellow
+        return
+    }
+    Write-Host "  https://github.com/$ReleaseRepo#readme" -ForegroundColor Gray
 }
 
 Set-Location $root
@@ -180,6 +250,7 @@ if (-not $Nachricht) {
 if ($Trockenlauf) {
     Write-Host "`nTrockenlauf - es wurde nichts gepusht." -ForegroundColor Green
     Write-Host "  Entstanden waere: ein Commit mit Baum $($baum.Substring(0,7)) auf $Repo ($Zweig)."
+    ReleaseReadme -NurZeigen
     exit 0
 }
 
@@ -218,6 +289,8 @@ finally {
 
 git push $Remote "${neu}:refs/heads/$Zweig"
 if ($LASTEXITCODE -ne 0) { Abort "Push nach $Repo fehlgeschlagen." }
+
+ReleaseReadme
 
 Write-Host "`nVeroeffentlicht." -ForegroundColor Green
 Write-Host "  Commit : $neu"

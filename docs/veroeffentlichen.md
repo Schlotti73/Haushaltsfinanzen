@@ -42,6 +42,7 @@ Commit, der hier je gemacht wurde.
 | `-Trotzdem` | Funde der Inhaltsprüfung übergehen |
 | `-Absender "Name <adresse>"` | anderer Absender für den Commit |
 | `-Repo`, `-Remote`, `-Zweig` | Ziel abweichend vom Standard |
+| `-ReleaseRepo "…"` | Repository der Release-Pakete, dessen README mitgepflegt wird |
 
 Das Skript bricht ab, wenn das Arbeitsverzeichnis nicht sauber ist. Das ist
 hier wichtiger als anderswo: gepusht wird der Baum des letzten **Commits**,
@@ -50,6 +51,21 @@ für veröffentlicht, die man nur gespeichert hat.
 
 Ist der Baum drüben schon derselbe, endet das Skript ohne Commit – ein zweiter
 Aufruf erzeugt also keinen Leerlauf-Commit.
+
+## Die README des Release-Repositories
+
+`Schlotti73/Haushaltsfinanz-Releases` trägt keinen Baum, nur die ZIPs. Seine
+README wäre damit der einzige veröffentlichte Text, der nie durch die
+Inhaltsprüfung läuft – und gerade eine Installationsanleitung zieht Beispiele
+an, in denen Pfade und Namen stecken.
+
+Die Quelle liegt deshalb hier: [`docs/release-repo-readme.md`](release-repo-readme.md).
+Sie wird mit dem Baum geprüft und am Ende jeder Veröffentlichung über die
+GitHub-API als `README.md` hinübergeschrieben – nur, wenn sich der Inhalt
+unterscheidet, und bei `-Trockenlauf` gar nicht. Ein Fehlschlag dort ist ein
+Hinweis und kein Abbruch: Die Veröffentlichung selbst ist zu dem Zeitpunkt
+gelaufen. In das Paket wandert die Datei nicht, `create_prod_zip.ps1` nimmt aus
+`docs\` nur `betrieb.md` und `docker.md`.
 
 ## Der Absender
 
