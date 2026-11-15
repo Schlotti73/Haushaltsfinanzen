@@ -83,7 +83,7 @@ export default function Geschaefte() {
           onChange={e => setSuche(e.target.value)}
         />
         <label className="flex items-center gap-1.5 text-sm text-gray-600">
-          <input type="checkbox" checked={nurAktiv} onChange={e => setNurAktiv(e.target.checked)} />
+          <input type="checkbox" role="switch" className="schieber schieber-sm" checked={nurAktiv} onChange={e => setNurAktiv(e.target.checked)} />
           nur aktive
         </label>
       </div>

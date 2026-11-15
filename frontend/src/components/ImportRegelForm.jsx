@@ -139,7 +139,7 @@ export default function ImportRegelForm({ initial, onGespeichert, onAbbrechen, k
       )}
 
       <label className="flex items-center gap-2 text-sm cursor-pointer">
-        <input type="checkbox" className="w-4 h-4 accent-blue-600" checked={form.aktiv}
+        <input type="checkbox" role="switch" className="schieber" checked={form.aktiv}
                onChange={e => set('aktiv', e.target.checked)} />
         Aktiv
       </label>

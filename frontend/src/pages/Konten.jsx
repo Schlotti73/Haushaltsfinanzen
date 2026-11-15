@@ -227,7 +227,7 @@ function DarlehenDetail({ konto, isAdmin, confirm }) {
         </div>
         {!istEndfaellig && (
           <label className="text-sm flex items-center gap-2">
-            <input type="checkbox" checked={mitSonder} onChange={(ev) => setMitSonder(ev.target.checked)} />
+            <input type="checkbox" role="switch" className="schieber schieber-sm" checked={mitSonder} onChange={(ev) => setMitSonder(ev.target.checked)} />
             Sondertilgungen einrechnen
           </label>
         )}
@@ -653,7 +653,7 @@ export default function Konten() {
         <h2 className="text-xl font-bold">Konten</h2>
         <div className="flex items-center gap-4">
           <label className="text-sm flex items-center gap-2">
-            <input type="checkbox" checked={zeigeInaktive}
+            <input type="checkbox" role="switch" className="schieber schieber-sm" checked={zeigeInaktive}
               onChange={(e) => setZeigeInaktive(e.target.checked)} />
             Inaktive anzeigen
           </label>
@@ -1029,7 +1029,7 @@ export default function Konten() {
             })()}
             {form.id && (
               <div className="flex items-center gap-2">
-                <input type="checkbox" id="aktiv" checked={form.aktiv}
+                <input type="checkbox" role="switch" className="schieber" id="aktiv" checked={form.aktiv}
                   onChange={(e) => setForm({ ...form, aktiv: e.target.checked })} />
                 <label htmlFor="aktiv" className="text-sm">Aktiv</label>
               </div>

@@ -131,13 +131,16 @@ export default function Einstellungen() {
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
+  // Speichern und Benachrichtigen stehen bewusst NEBEN setVersteckt und nicht im
+  // Updater: React darf einen Updater waehrend des Renderns aufrufen, das Event
+  // wuerde dann im Layout mitten im Render State setzen ("Cannot update a
+  // component while rendering a different component"). Der Aufruf kommt aus
+  // einem onChange, also ist versteckt hier der aktuelle Stand.
   const toggleModul = (to) => {
-    setVersteckt(prev => {
-      const next = prev.includes(to) ? prev.filter(x => x !== to) : [...prev, to]
-      localStorage.setItem('versteckte_module', JSON.stringify(next))
-      window.dispatchEvent(new Event('versteckte_module_geaendert'))
-      return next
-    })
+    const next = versteckt.includes(to) ? versteckt.filter(x => x !== to) : [...versteckt, to]
+    setVersteckt(next)
+    localStorage.setItem('versteckte_module', JSON.stringify(next))
+    window.dispatchEvent(new Event('versteckte_module_geaendert'))
   }
 
   const onSpeichern = async (e) => {
@@ -226,18 +229,21 @@ export default function Einstellungen() {
         </div>
       </div>
 
-      {/* Module ausblenden */}
+      {/* Module in der Navigation. Der Schalter zeigt "sichtbar", gespeichert wird
+          weiter die Liste der versteckten Module - ein Schieber, dessen An-Zustand
+          "ausgeblendet" bedeutet, liest sich verkehrt. */}
       <div className="card p-5 space-y-4">
-        <h3 className="font-semibold text-gray-700">Module ausblenden</h3>
-        <p className="text-xs text-gray-400">Ausgeblendete Module erscheinen nicht in der Navigation.</p>
+        <h3 className="font-semibold text-gray-700">Module in der Navigation</h3>
+        <p className="text-xs text-gray-400">Ausgeschaltete Module erscheinen nicht in der Navigation.</p>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
           {navItems.filter(item => item.to !== '/').map(item => (
             <label key={item.to} className="flex items-center gap-2 cursor-pointer select-none">
               <input
                 type="checkbox"
-                checked={versteckt.includes(item.to)}
+                role="switch"
+                checked={!versteckt.includes(item.to)}
                 onChange={() => toggleModul(item.to)}
-                className="w-4 h-4 accent-blue-600"
+                className="schieber"
               />
               <span className="text-sm text-gray-700">{item.label}</span>
             </label>
@@ -251,7 +257,8 @@ export default function Einstellungen() {
         <label className="flex items-start gap-2 text-sm text-gray-700">
           <input
             type="checkbox"
-            className="mt-0.5"
+            role="switch"
+            className="schieber mt-0.5"
             checked={dashboard.finanzsaldo}
             onChange={e => speichereDashboard({ finanzsaldo: e.target.checked })}
             disabled={dashboardSpeichern}
@@ -391,9 +398,10 @@ export default function Einstellungen() {
         <label className="flex items-center gap-3 cursor-pointer">
           <input
             type="checkbox"
+            role="switch"
             checked={form.aktiviert}
             onChange={e => set('aktiviert', e.target.checked)}
-            className="w-4 h-4 accent-blue-600"
+            className="schieber"
           />
           <span className="text-sm">Tägliches Backup aktiviert</span>
         </label>
@@ -564,7 +572,8 @@ function ErinnerungsZeile({ label, hinweis, an, gesperrt, onSchalter, children }
       <label className="flex items-start gap-2 text-sm text-gray-700 cursor-pointer">
         <input
           type="checkbox"
-          className="mt-0.5"
+          role="switch"
+          className="schieber mt-0.5"
           checked={an}
           disabled={gesperrt}
           onChange={(e) => onSchalter(e.target.checked)}

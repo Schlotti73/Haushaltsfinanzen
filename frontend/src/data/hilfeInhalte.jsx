@@ -329,7 +329,7 @@ function WiederkehrendLiquiditaet() {
       <p>
         Eine wiederkehrende Vorlage (Empfänger, Betrag, Konto, Kategorie, Rhythmus, Start- und
         optionales Enddatum) legt fest, was regelmäßig anfällt – etwa „Miete −500&nbsp;€ monatlich".
-        Das Häkchen <span className="font-medium">Aktiv</span> steuert, ob aus ihr überhaupt
+        Der Schalter <span className="font-medium">Aktiv</span> steuert, ob aus ihr überhaupt
         generiert wird; eine deaktivierte Vorlage bleibt erhalten, erzeugt aber nichts.
       </p>
       <HilfeFlow>
@@ -398,7 +398,7 @@ function KontenDarlehen() {
       </HilfeFlow>
       <p>
         <span className="font-medium">Sondertilgungen</span> (beliebig viele, mit Datum, Betrag und
-        Notiz) trägst du in der Darlehens-Detailansicht ein; ein Häkchen steuert, ob sie in die
+        Notiz) trägst du in der Darlehens-Detailansicht ein; ein Schalter steuert, ob sie in die
         Hochrechnung einfließen.
       </p>
       <HilfeFlow>

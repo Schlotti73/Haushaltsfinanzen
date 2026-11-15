@@ -86,7 +86,7 @@ export default function Kategorien() {
             </div>
             {katForm.id && (
               <div className="flex items-center gap-2">
-                <input type="checkbox" id="aktiv" checked={katForm.aktiv ?? true} onChange={(e) => setKatForm({ ...katForm, aktiv: e.target.checked })} />
+                <input type="checkbox" role="switch" className="schieber" id="aktiv" checked={katForm.aktiv ?? true} onChange={(e) => setKatForm({ ...katForm, aktiv: e.target.checked })} />
                 <label htmlFor="aktiv" className="text-sm">Aktiv</label>
               </div>
             )}

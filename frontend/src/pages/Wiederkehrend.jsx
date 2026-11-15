@@ -83,7 +83,7 @@ function WbForm({ initial, konten, kategorien, onSave, onCancel }) {
           <input className="input" type="date" value={f.end_datum || ''} onChange={e => set('end_datum', e.target.value)} />
         </div>
         <div className="flex items-center gap-2 pt-5">
-          <input type="checkbox" id="aktiv" checked={f.aktiv} onChange={e => set('aktiv', e.target.checked)} />
+          <input type="checkbox" role="switch" className="schieber" id="aktiv" checked={f.aktiv} onChange={e => set('aktiv', e.target.checked)} />
           <label htmlFor="aktiv" className="text-sm text-gray-700">Aktiv</label>
         </div>
       </div>

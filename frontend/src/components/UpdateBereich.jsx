@@ -284,7 +284,7 @@ export default function UpdateBereich() {
             </span>
           </label>
           <label className="flex items-center gap-2 text-sm text-gray-700">
-            <input type="checkbox" className="w-4 h-4 accent-blue-600"
+            <input type="checkbox" role="switch" className="schieber"
                    checked={aktiviert} onChange={(e) => setAktiviert(e.target.checked)} />
             Beim Start auf neue Versionen prüfen
           </label>

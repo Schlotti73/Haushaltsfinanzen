@@ -263,7 +263,7 @@ export default function ImportRegeln() {
           gefüllt, der Empfänger nur ersetzt, solange er noch dem Bankrohtext entspricht.
         </p>
         <label className="flex items-center gap-2 text-sm cursor-pointer">
-          <input type="checkbox" className="w-4 h-4 accent-blue-600" checked={ueberschreiben}
+          <input type="checkbox" className="haken" checked={ueberschreiben}
                  onChange={e => { setUeberschreiben(e.target.checked); setLauf(null) }} />
           Bereits gefüllte Felder überschreiben
         </label>

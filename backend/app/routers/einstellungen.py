@@ -1,6 +1,8 @@
 """Lese/Schreibe Anwendungseinstellungen aus config/backup.json."""
 
+import io
 import json
+import logging
 import re
 import sqlite3
 import subprocess
@@ -13,6 +15,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, Response
+from PIL import Image
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -30,6 +33,8 @@ from app.services.ocr.parser import parse_kassenzettel
 from app.services.pdf_import.dispatcher import _parser_fuer_muster
 from app.services.pdf_import.render import render_erste_seite_png
 from app.pfade import daten_dir, einstellungen_dir, programm_dir
+
+log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/einstellungen", tags=["einstellungen"])
 
@@ -710,10 +715,12 @@ def muster_loeschen(
 
 _KZ_DIR = settings.kassenzettel_muster_dir
 MAX_BILD_MB = 15
-_BILD_TYPEN = {
-    "image/jpeg": ".jpg",
-    "image/png": ".png",
-    "image/webp": ".webp",
+# Von Pillow gemeldetes Format → Dateiendung (MPO = Mehrbild-JPEG aus Handykameras)
+_BILD_FORMATE = {
+    "JPEG": ".jpg",
+    "MPO": ".jpg",
+    "PNG": ".png",
+    "WEBP": ".webp",
 }
 
 
@@ -780,6 +787,7 @@ class KzProbe(BaseModel):
     ocr_segmentiert: Optional[bool] = None
     ocr_preiszeilen: Optional[int] = None
     hat_vorschau: bool = False
+    fehler: Optional[str] = None
 
 
 def _eindeutiger_geschaeft_key(db: Session, basis: str) -> str:
@@ -830,14 +838,26 @@ def _kz_muster_out(m: KassenzettelMuster) -> KzMusterOut:
 
 
 def _kz_probe(m: KassenzettelMuster) -> KzProbe:
-    """OCR auf dem gespeicherten Beispielfoto + Parsen mit aktuellem Profil."""
+    """OCR auf dem gespeicherten Beispielfoto + Parsen mit aktuellem Profil.
+
+    Scheitert die Texterkennung (unlesbares Bild, Tesseract-Fehler), ist das
+    kein Serverfehler: Das Muster bleibt, und die Probe kommt mit gesetztem
+    `fehler` zurück, damit die Oberfläche den Grund nennen kann.
+    """
     positionen: list = []
     ocr = None
+    fehler: Optional[str] = None
     bild = _kz_bild_pfad(m)
     if bild and bild.exists():
         vorschau_pfad = _KZ_DIR / f"{m.geschaeft_key}_vorschau.jpg"
-        ocr = verbessere_und_lies(bild, speicher_pfad=vorschau_pfad)
-        positionen = parse_kassenzettel(ocr.rohtext, baue_profil(m))
+        try:
+            ocr = verbessere_und_lies(bild, speicher_pfad=vorschau_pfad)
+            positionen = parse_kassenzettel(ocr.rohtext, baue_profil(m))
+        except Exception as exc:
+            log.exception("Probe-Extraktion fehlgeschlagen (Muster %s)", m.geschaeft_key)
+            ocr = None
+            positionen = []
+            fehler = f"Texterkennung fehlgeschlagen: {exc}"
     schluessel = sorted({p["mwst_schluessel"] for p in positionen if p.get("mwst_schluessel")})
     vorschau_vorhanden = bool(ocr and (_KZ_DIR / f"{m.geschaeft_key}_vorschau.jpg").exists())
     return KzProbe(
@@ -850,23 +870,48 @@ def _kz_probe(m: KassenzettelMuster) -> KzProbe:
         ocr_segmentiert=ocr.segmentiert if ocr else None,
         ocr_preiszeilen=ocr.preiszeilen if ocr else None,
         hat_vorschau=vorschau_vorhanden,
+        fehler=fehler,
     )
 
 
 async def _lese_bild(datei: UploadFile) -> tuple[bytes, str]:
-    """Liest ein hochgeladenes Foto und liefert (Bytes, Dateiendung)."""
-    endung = _BILD_TYPEN.get(datei.content_type or "")
-    if endung is None:  # Fallback über Dateiname
-        name = (datei.filename or "").lower()
-        for ext in (".jpg", ".jpeg", ".png", ".webp"):
-            if name.endswith(ext):
-                endung = ".jpg" if ext == ".jpeg" else ext
-                break
-    if endung is None:
-        raise HTTPException(400, "Nur Fotos erlaubt (JPEG, PNG, WebP)")
+    """Liest ein hochgeladenes Foto und liefert (Bytes, Dateiendung).
+
+    Die Endung richtet sich nach dem *tatsächlichen* Bildinhalt, nicht nach
+    content-type oder Dateiname: Handy-Fotos kommen oft mit falscher oder
+    fehlender Typ-Angabe an, und ein Bild, das Pillow nicht öffnen kann,
+    würde die OCR später mit einem 500er abbrechen lassen. Lieber hier eine
+    verständliche Meldung, bevor das alte Beispielfoto überschrieben wird.
+    """
     daten = await datei.read()
+    if not daten:
+        raise HTTPException(400, "Die Datei ist leer.")
     if len(daten) > MAX_BILD_MB * 1024 * 1024:
         raise HTTPException(413, f"Foto zu groß (max. {MAX_BILD_MB} MB)")
+    try:
+        with Image.open(io.BytesIO(daten)) as bild:
+            bild.verify()
+            format_name = (bild.format or "").upper()
+    except Exception:
+        name = (datei.filename or "Datei").strip()
+        if name.lower().endswith((".heic", ".heif")):
+            raise HTTPException(
+                400,
+                f'„{name}" ist ein HEIC/HEIF-Foto – dieses Format kann nicht gelesen '
+                'werden. Bitte als JPEG, PNG oder WebP speichern und erneut hochladen.',
+            )
+        raise HTTPException(
+            400,
+            f'„{name}" konnte nicht als Bild gelesen werden (beschädigt oder kein '
+            'unterstütztes Format). Erlaubt sind JPEG, PNG und WebP.',
+        )
+    endung = _BILD_FORMATE.get(format_name)
+    if endung is None:
+        raise HTTPException(
+            400,
+            f'Format {format_name or "unbekannt"} wird nicht unterstützt – '
+            'bitte JPEG, PNG oder WebP hochladen.',
+        )
     return daten, endung
 
 

@@ -116,7 +116,7 @@ export default function KontoauszugMuster() {
                 {m.hat_screenshot && <span className="badge badge-gray text-[10px]">Beispiel</span>}
                 <span className="ml-auto" onClick={e => e.stopPropagation()}>
                   <label className="flex items-center gap-1.5 cursor-pointer text-xs text-gray-500">
-                    <input type="checkbox" checked={m.aktiv} onChange={() => onToggleAktiv(m)} className="w-3.5 h-3.5 accent-blue-600" />
+                    <input type="checkbox" role="switch" checked={m.aktiv} onChange={() => onToggleAktiv(m)} className="schieber schieber-sm" />
                     aktiv
                   </label>
                 </span>

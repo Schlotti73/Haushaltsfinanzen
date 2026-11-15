@@ -801,6 +801,7 @@ export default function Haushaltsbuch() {
                           <div key={idx} className="flex flex-wrap gap-2 items-center bg-white rounded border border-gray-100 px-2 py-1">
                             <input
                               type="checkbox"
+                              className="haken"
                               checked={p.ausgewaehlt}
                               onChange={e => setOcrPosition(idx, 'ausgewaehlt', e.target.checked)}
                             />
@@ -1066,6 +1067,7 @@ export default function Haushaltsbuch() {
                   <div key={idx} className="flex gap-2 items-center">
                     <input
                       type="checkbox"
+                      className="haken"
                       checked={p.ausgewaehlt}
                       onChange={e => setOcrPosition(idx, 'ausgewaehlt', e.target.checked)}
                     />

@@ -191,6 +191,72 @@
   .badge-red { @apply badge bg-red-100 text-red-800; }
   .badge-gray { @apply badge bg-gray-100 text-gray-700; }
   .badge-blue { @apply badge bg-blue-100 text-blue-800; }
+
+  /* Schieber: ein <input type="checkbox" role="switch" class="schieber">. Die
+     Checkbox bleibt stehen, damit Tastatur, Label-Klick und Fokus weiter vom
+     Browser kommen; nur die Darstellung wird ersetzt.
+     Farben ausschliesslich ueber die Hausvariablen von oben: --grau-700 ist
+     hell #374151 und dunkel #ccd3dd, --flaeche umgekehrt. Beide kippen im
+     Dunkelmodus von allein, es braucht hier keine .dark-Regel.
+     Gedacht fuer Dauerzustaende (Aktiv, Erledigt) und Ansichts-Schalter.
+     Mehrfachauswahl und Ankreuzungen zu einem Knopf bleiben .haken. */
+  .schieber {
+    appearance: none;
+    -webkit-appearance: none;
+    box-sizing: content-box;
+    width: 2.125rem;            /* 34 x 18 */
+    height: 1.125rem;
+    flex: none;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 9999px;
+    position: relative;
+    cursor: pointer;
+    background: var(--grau-300);
+    transition: background-color .16s ease;
+  }
+  .schieber::before {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: .875rem;             /* 14 */
+    height: .875rem;
+    border-radius: 50%;
+    background: var(--flaeche);
+    box-shadow: 0 1px 2px rgb(0 0 0 / .3);
+    transition: transform .16s ease;
+  }
+  /* Hell das Blau der Knoepfe, damit der An-Zustand dieselbe Akzentfarbe traegt
+     wie btn-primary. Im Dunkeln waere blue-600 auf --flaeche zu dunkel, dort
+     uebernimmt --grau-700 (#ccd3dd) - die Spur wird hell, der Knopf dunkel. */
+  .schieber:checked { @apply bg-blue-600; }
+  .dark .schieber:checked { background: var(--grau-700); }
+  .schieber:checked::before { transform: translateX(1rem); }
+  .schieber:focus-visible { @apply outline-none ring-2 ring-blue-500 ring-offset-1; }
+  .schieber:disabled { @apply opacity-50 cursor-not-allowed; }
+
+  /* Kleine Groesse fuer text-xs-Umgebungen: Muster-Listen, Werkzeugleisten. */
+  .schieber-sm { width: 1.75rem; height: .9375rem; }   /* 28 x 15 */
+  .schieber-sm::before { width: .6875rem; height: .6875rem; }
+  .schieber-sm:checked::before { transform: translateX(.8125rem); }
+
+  /* Haken: bleibt dort, wo angekreuzt und nicht geschaltet wird - Mehrfach-
+     auswahl von Datensaetzen und Optionen, die zu einem Knopf gehoeren.
+     Eigene Klasse nur, damit Groesse und Farbe nicht je Fundstelle variieren. */
+  .haken {
+    width: 1rem;
+    height: 1rem;
+    flex: none;
+    margin: 0;
+    cursor: pointer;
+    accent-color: theme(colors.blue.600);
+  }
+  /* Gleiche Teilung wie beim Schieber: hell das Knopf-Blau, dunkel Schiefer -
+     sonst stuenden Haken und Schieber nebeneinander in zwei Farben. */
+  .dark .haken { accent-color: var(--grau-700); }
+  .haken:disabled { @apply opacity-50 cursor-not-allowed; }
 }
 
 /* Bewusst ausserhalb von @layer components: in der Layer-Kaskade setzt sich die

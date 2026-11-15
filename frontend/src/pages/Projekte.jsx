@@ -215,7 +215,7 @@ function PostenForm({ projektId, posten, kategorien, darlehenKonten, onClose, on
         )}
         <div><label className="label">Notiz</label><textarea className="input" rows={2} value={form.notiz ?? ''} onChange={(e) => setForm({ ...form, notiz: e.target.value })} /></div>
         <div className="flex items-center gap-2">
-          <input type="checkbox" id="posten-erledigt" checked={!!form.erledigt} onChange={(e) => setForm({ ...form, erledigt: e.target.checked })} />
+          <input type="checkbox" role="switch" className="schieber" id="posten-erledigt" checked={!!form.erledigt} onChange={(e) => setForm({ ...form, erledigt: e.target.checked })} />
           <label htmlFor="posten-erledigt" className="text-sm">Erledigt</label>
         </div>
       </Modal>
@@ -649,7 +649,7 @@ export default function Projekte() {
             </div>
             {form.id && (
               <div className="flex items-center gap-2">
-                <input type="checkbox" id="aktiv" checked={form.aktiv ?? true} onChange={(e) => setForm({ ...form, aktiv: e.target.checked })} />
+                <input type="checkbox" role="switch" className="schieber" id="aktiv" checked={form.aktiv ?? true} onChange={(e) => setForm({ ...form, aktiv: e.target.checked })} />
                 <label htmlFor="aktiv" className="text-sm">Aktiv</label>
               </div>
             )}

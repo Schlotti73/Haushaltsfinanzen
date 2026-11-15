@@ -384,14 +384,14 @@ function Uebersicht({ daten }) {
         <div className="flex flex-wrap gap-x-4 gap-y-1">
           {legende.map((r) => (
             <label key={r.zaehler_id} className="flex items-center gap-1.5 text-sm cursor-pointer">
-              <input type="checkbox" checked={sichtbar.has(r.zaehler_id)} onChange={() => umschalten(r.zaehler_id)} />
+              <input type="checkbox" className="haken" checked={sichtbar.has(r.zaehler_id)} onChange={() => umschalten(r.zaehler_id)} />
               <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: farbeFuer(r.zaehler_id) }} />
               {r.name}
             </label>
           ))}
           {zeigeKosten && hatSonstige && (
             <label className="flex items-center gap-1.5 text-sm cursor-pointer">
-              <input type="checkbox" checked={zeigeSonstige} onChange={() => setZeigeSonstige((s) => !s)} />
+              <input type="checkbox" className="haken" checked={zeigeSonstige} onChange={() => setZeigeSonstige((s) => !s)} />
               <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: FARBE_SONSTIGE }} />
               Übrige Nebenkosten
             </label>
@@ -962,7 +962,7 @@ function Nebenkosten({ gebaeudeId, daten, zaehler, kategorien, istAdmin, onAende
 
       {leere > 0 && (
         <label className="flex items-center gap-2 text-sm text-gray-600">
-          <input type="checkbox" checked={alleJahre} onChange={(e) => setAlleJahre(e.target.checked)} />
+          <input type="checkbox" role="switch" className="schieber schieber-sm" checked={alleJahre} onChange={(e) => setAlleJahre(e.target.checked)} />
           {leere} {leere === 1 ? 'Jahr' : 'Jahre'} ohne Kosten mit anzeigen
         </label>
       )}
@@ -1175,9 +1175,12 @@ function Stammdaten({ gebaeude, neu, istAdmin, confirm, zeigeInaktive, setZeigeI
           </label>
         </div>
 
-        <label className="flex items-center gap-2 text-sm">
+        {/* items-start, weil die Erklaerung daneben zweizeilig wird. */}
+        <label className="flex items-start gap-2 text-sm">
           <input
             type="checkbox"
+            role="switch"
+            className="schieber mt-0.5"
             checked={form.aktiv}
             onChange={(e) => setForm((f) => ({ ...f, aktiv: e.target.checked }))}
           />
@@ -1221,6 +1224,8 @@ function InaktiveSchalter({ zeigeInaktive, setZeigeInaktive }) {
     <label className="flex items-center gap-2 text-sm text-gray-600">
       <input
         type="checkbox"
+        role="switch"
+        className="schieber schieber-sm"
         checked={zeigeInaktive}
         onChange={(e) => setZeigeInaktive(e.target.checked)}
       />

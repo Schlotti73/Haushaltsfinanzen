@@ -375,7 +375,7 @@ export default function Import() {
               <label className="btn-secondary btn-sm cursor-pointer select-none">
                 <input
                   type="checkbox"
-                  className="cursor-pointer"
+                  className="haken"
                   checked={auffrischen}
                   onChange={e => setAuffrischen(e.target.checked)}
                 />
@@ -394,7 +394,7 @@ export default function Import() {
                       checked={alleAn}
                       ref={el => { if (el) el.indeterminate = teilweiseAn }}
                       onChange={toggleAlle}
-                      className="cursor-pointer"
+                      className="haken"
                       title="Alle auswählen / abwählen"
                     />
                   </th>
@@ -432,7 +432,7 @@ export default function Import() {
                             checked={istAusgewaehlt}
                             disabled={!istWaehlbar}
                             onChange={() => toggleRow(b.import_hash)}
-                            className={istWaehlbar ? 'cursor-pointer' : 'opacity-30'}
+                            className={istWaehlbar ? 'haken' : 'haken opacity-30'}
                           />
                         </td>
                         <td className="px-3 py-1.5">

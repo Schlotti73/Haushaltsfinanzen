@@ -385,7 +385,7 @@ function MehrfachAendernDialog({ anzahl, kategorien, empfaenger, onClose, onSave
       <div className="space-y-3">
         <div>
           <label className="flex items-center gap-2">
-            <input type="checkbox" checked={aktiv.kategorie_id} onChange={() => umschalten('kategorie_id')} />
+            <input type="checkbox" className="haken" checked={aktiv.kategorie_id} onChange={() => umschalten('kategorie_id')} />
             <span className="label mb-0">Kategorie setzen</span>
           </label>
           {aktiv.kategorie_id && (
@@ -400,7 +400,7 @@ function MehrfachAendernDialog({ anzahl, kategorien, empfaenger, onClose, onSave
         </div>
         <div>
           <label className="flex items-center gap-2">
-            <input type="checkbox" checked={aktiv.empfaenger_id} onChange={() => umschalten('empfaenger_id')} />
+            <input type="checkbox" className="haken" checked={aktiv.empfaenger_id} onChange={() => umschalten('empfaenger_id')} />
             <span className="label mb-0">Empfänger setzen</span>
           </label>
           {aktiv.empfaenger_id && (
@@ -416,7 +416,7 @@ function MehrfachAendernDialog({ anzahl, kategorien, empfaenger, onClose, onSave
         </div>
         <div>
           <label className="flex items-center gap-2">
-            <input type="checkbox" checked={aktiv.status} onChange={() => umschalten('status')} />
+            <input type="checkbox" className="haken" checked={aktiv.status} onChange={() => umschalten('status')} />
             <span className="label mb-0">Status setzen</span>
           </label>
           {aktiv.status && (
@@ -477,7 +477,7 @@ function BuchungKarte({ b, katName, kontoName, ausgewaehlt, mehrfachModus, onTog
     <div className={`border-b px-3 py-2.5 ${ausgewaehlt ? 'bg-blue-100' : 'odd:bg-white even:bg-gray-50'}`}>
       <div className="flex items-start gap-2">
         {mehrfachModus && (
-          <input type="checkbox" checked={ausgewaehlt} onChange={() => onToggle(b.id)} className="mt-1 cursor-pointer" />
+          <input type="checkbox" checked={ausgewaehlt} onChange={() => onToggle(b.id)} className="haken mt-1" />
         )}
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline justify-between gap-2">
@@ -856,6 +856,8 @@ export default function Buchungen() {
             <label className="flex items-center gap-2 mt-1 text-sm text-gray-600">
               <input
                 type="checkbox"
+                role="switch"
+                className="schieber schieber-sm"
                 checked={filter.nur_diese_kategorie === '1'}
                 onChange={(e) => setF('nur_diese_kategorie', e.target.checked ? '1' : '')}
               />
@@ -921,7 +923,7 @@ export default function Buchungen() {
             <tr className="text-left text-gray-500 border-b bg-gray-50 text-xs uppercase tracking-wide">
               {mehrfachModus && (
                 <th className="px-3 py-2">
-                  <input type="checkbox" checked={alleAusgewaehlt} onChange={toggleAlle} className="cursor-pointer" />
+                  <input type="checkbox" checked={alleAusgewaehlt} onChange={toggleAlle} className="haken" />
                 </th>
               )}
               <th className="px-3 py-2 font-medium">Datum ↓</th>
@@ -947,7 +949,7 @@ export default function Buchungen() {
                 <tr key={b.id} className={`border-b hover:bg-blue-50 ${auswahl.has(b.id) ? 'bg-blue-100' : 'odd:bg-white even:bg-gray-50'}`}>
                   {mehrfachModus && (
                     <td className="px-3 py-2">
-                      <input type="checkbox" checked={auswahl.has(b.id)} onChange={() => toggleAuswahl(b.id)} className="cursor-pointer" />
+                      <input type="checkbox" checked={auswahl.has(b.id)} onChange={() => toggleAuswahl(b.id)} className="haken" />
                     </td>
                   )}
                   <td className="px-3 py-2 text-gray-500 tabular-nums whitespace-nowrap">{fmtDatum(b.datum)}</td>
@@ -977,7 +979,7 @@ export default function Buchungen() {
       <div className="card p-0 md:hidden">
         {mehrfachModus && (
           <label className="flex items-center gap-2 border-b bg-gray-50 px-3 py-2 text-xs uppercase tracking-wide text-gray-500">
-            <input type="checkbox" checked={alleAusgewaehlt} onChange={toggleAlle} className="cursor-pointer" />
+            <input type="checkbox" checked={alleAusgewaehlt} onChange={toggleAlle} className="haken" />
             Alle auf dieser Seite
           </label>
         )}

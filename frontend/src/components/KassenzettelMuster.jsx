@@ -2,6 +2,19 @@ import { useEffect, useRef, useState } from 'react'
 import { einstellungenApi } from '../api'
 import KategorieSelect from './KategorieSelect'
 
+// Fehlertext aus einer fehlgeschlagenen API-Antwort. Ohne „detail" (z.B. bei
+// einem 500er, der nur „Internal Server Error" liefert) wenigstens den Status
+// nennen – „fehlgeschlagen" allein hilft bei der Ursachensuche nicht weiter.
+function fehlertext(err, fallback) {
+  const d = err?.response?.data?.detail
+  if (typeof d === 'string' && d.trim()) return d
+  if (Array.isArray(d) && d.length) return d.map(e => e.msg || JSON.stringify(e)).join('; ')
+  const status = err?.response?.status
+  if (status) return `${fallback} (HTTP ${status})`
+  if (err?.message) return `${fallback} (${err.message})`
+  return fallback
+}
+
 function fmt(n) {
   return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(n)
 }
@@ -45,7 +58,7 @@ export default function KassenzettelMuster() {
       setAktivId(r.data.id)
       setMeldung({ typ: 'ok', text: `Geschäft „${r.data.name}" angelegt – Beispielfoto hochladen und Felder einstellen.` })
     } catch (e) {
-      setMeldung({ typ: 'fehler', text: e.response?.data?.detail ?? 'Anlegen fehlgeschlagen.' })
+      setMeldung({ typ: 'fehler', text: fehlertext(e, 'Anlegen fehlgeschlagen.') })
     } finally {
       setAnlegen(false)
     }
@@ -110,7 +123,7 @@ export default function KassenzettelMuster() {
                 {m.mwst_kategorie_map.length > 0 && <span className="badge badge-green text-[10px]">MwSt-Map</span>}
                 <span className="ml-auto" onClick={e => e.stopPropagation()}>
                   <label className="flex items-center gap-1.5 cursor-pointer text-xs text-gray-500">
-                    <input type="checkbox" checked={m.aktiv} onChange={() => onToggleAktiv(m)} className="w-3.5 h-3.5 accent-blue-600" />
+                    <input type="checkbox" role="switch" checked={m.aktiv} onChange={() => onToggleAktiv(m)} className="schieber schieber-sm" />
                     aktiv
                   </label>
                 </span>
@@ -242,7 +255,7 @@ function KzDetail({ muster, kategorien, onGeaendert, onLoeschen, setMeldung }) {
       setMeldung({ typ: 'ok', text: 'Geschäft gespeichert.' })
       onGeaendert()
     } catch (e) {
-      setMeldung({ typ: 'fehler', text: e.response?.data?.detail ?? 'Speichern fehlgeschlagen.' })
+      setMeldung({ typ: 'fehler', text: fehlertext(e, 'Speichern fehlgeschlagen.') })
     } finally {
       setSpeichern(false)
     }
@@ -261,9 +274,11 @@ function KzDetail({ muster, kategorien, onGeaendert, onLoeschen, setMeldung }) {
       setPending(null); setPendingLabel('')
       setCacheBust(Date.now())
       onGeaendert()
-      setMeldung({ typ: 'ok', text: `Beispielfoto erkannt – ${r.data.positionen.length} Artikel.` })
+      setMeldung(r.data.fehler
+        ? { typ: 'fehler', text: `Foto gespeichert, aber ${r.data.fehler}` }
+        : { typ: 'ok', text: `Beispielfoto erkannt – ${r.data.positionen.length} Artikel.` })
     } catch (err) {
-      setMeldung({ typ: 'fehler', text: err.response?.data?.detail ?? 'Upload fehlgeschlagen.' })
+      setMeldung({ typ: 'fehler', text: fehlertext(err, 'Upload fehlgeschlagen.') })
     } finally {
       setProbeLaeuft(false)
       if (fotoRef.current) fotoRef.current.value = ''
@@ -276,8 +291,9 @@ function KzDetail({ muster, kategorien, onGeaendert, onLoeschen, setMeldung }) {
     try {
       const r = await einstellungenApi.kzProbe(muster.id)
       setProbe(r.data)
+      if (r.data.fehler) setMeldung({ typ: 'fehler', text: r.data.fehler })
     } catch (err) {
-      setMeldung({ typ: 'fehler', text: err.response?.data?.detail ?? 'Probe fehlgeschlagen.' })
+      setMeldung({ typ: 'fehler', text: fehlertext(err, 'Probe fehlgeschlagen.') })
     } finally {
       setProbeLaeuft(false)
     }
@@ -367,20 +383,28 @@ function KzDetail({ muster, kategorien, onGeaendert, onLoeschen, setMeldung }) {
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-gray-600">Beispielfoto · Probe-Extraktion</span>
-            <span className="flex items-center gap-3">
+            <span className="flex items-center gap-2">
               {muster.hat_bild && (
-                <button className="text-xs text-blue-600 hover:underline disabled:text-gray-400" onClick={onProbe} disabled={probeLaeuft}>
+                <button className="btn-secondary btn-sm" onClick={onProbe} disabled={probeLaeuft}>
                   {probeLaeuft ? 'Prüft…' : 'Erneut prüfen'}
                 </button>
               )}
               {muster.hat_bild && (
-                <button className="text-xs text-blue-600 hover:underline disabled:text-gray-400" onClick={oeffneMarkierungen} disabled={probeLaeuft}>
+                <button className="btn-secondary btn-sm" onClick={oeffneMarkierungen} disabled={probeLaeuft}>
                   {probeLaeuft ? 'Lädt…' : zeigeVorschau ? 'Bereichsmarkierung ausblenden' : `Bereichsmarkierung${markierungen.length ? ` (${markierungen.length})` : ''}`}
                 </button>
               )}
-              <label className="text-xs text-blue-600 hover:underline cursor-pointer">
+              {/* Datei-Dialog: das Label trägt den Button-Stil, der Input bleibt versteckt. */}
+              <label className={`btn-secondary btn-sm ${probeLaeuft ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
                 {muster.hat_bild ? 'Foto ersetzen' : 'Foto hochladen'}
-                <input ref={fotoRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={onFoto} />
+                <input
+                  ref={fotoRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="hidden"
+                  disabled={probeLaeuft}
+                  onChange={onFoto}
+                />
               </label>
             </span>
           </div>
@@ -397,6 +421,9 @@ function KzDetail({ muster, kategorien, onGeaendert, onLoeschen, setMeldung }) {
               <div className="text-xs">
                 {probe ? (
                   <>
+                    {probe.fehler && (
+                      <p className="mb-2 rounded border border-red-200 bg-red-50 px-2 py-1 text-red-800">{probe.fehler}</p>
+                    )}
                     {/* OCR-Qualitäts-Info */}
                     <div className="flex flex-wrap gap-x-3 gap-y-0.5 mb-2 text-gray-500">
                       {probe.konfidenz != null && (

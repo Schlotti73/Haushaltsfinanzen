@@ -96,7 +96,7 @@ export default function Benutzer() {
             </div>
             {form.id && (
               <div className="flex items-center gap-2">
-                <input type="checkbox" id="aktiv" checked={form.aktiv ?? true} onChange={(e) => setForm({ ...form, aktiv: e.target.checked })} />
+                <input type="checkbox" role="switch" className="schieber" id="aktiv" checked={form.aktiv ?? true} onChange={(e) => setForm({ ...form, aktiv: e.target.checked })} />
                 <label htmlFor="aktiv" className="text-sm">Aktiv</label>
               </div>
             )}
