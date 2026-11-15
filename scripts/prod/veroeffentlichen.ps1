@@ -1,4 +1,4 @@
-# Hebt den aktuellen Stand in das oeffentliche Repository.
+﻿# Hebt den aktuellen Stand in das oeffentliche Repository.
 #
 # Dieses Repository hat eine Historie, die nicht an die Oeffentlichkeit soll:
 # sie enthaelt Jahre echter Haushaltsdaten in Testdateien, Screenshots und
