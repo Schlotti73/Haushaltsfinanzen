@@ -136,18 +136,18 @@ export default function Datenbanken() {
                   {wechselBestaetigen === db.id ? (
                     <span className="inline-flex items-center gap-2 text-xs">
                       <span className="text-amber-800 font-medium">Backup + Wechsel – sicher?</span>
-                      <button type="button" className="px-2 py-0.5 rounded bg-blue-600 hover:bg-blue-700 text-white font-medium" onClick={() => onWechselnBestaetigt(db)}>
+                      <button type="button" className="btn-primary btn-sm" onClick={() => onWechselnBestaetigt(db)}>
                         Ja, wechseln
                       </button>
-                      <button type="button" className="px-2 py-0.5 rounded bg-gray-200 hover:bg-gray-300 text-gray-700" onClick={() => setWechselBestaetigen(null)}>
+                      <button type="button" className="btn-secondary btn-sm" onClick={() => setWechselBestaetigen(null)}>
                         Abbrechen
                       </button>
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-3 text-xs">
+                    <span className="inline-flex items-center gap-2">
                       <button
                         type="button"
-                        className="text-blue-600 hover:text-blue-800 disabled:text-gray-400"
+                        className="btn-secondary btn-sm"
                         onClick={() => setWechselBestaetigen(db.id)}
                         disabled={db.aktiv || aktionLaeuft !== null}
                       >
@@ -155,7 +155,7 @@ export default function Datenbanken() {
                       </button>
                       <button
                         type="button"
-                        className="text-gray-500 hover:text-gray-700 disabled:text-gray-300"
+                        className="btn-secondary btn-sm"
                         onClick={() => onEntfernen(db)}
                         disabled={db.aktiv || aktionLaeuft !== null}
                       >
@@ -163,7 +163,7 @@ export default function Datenbanken() {
                       </button>
                       <button
                         type="button"
-                        className="text-red-600 hover:text-red-800 disabled:text-gray-300"
+                        className="btn-danger btn-sm"
                         onClick={() => onDateiLoeschen(db)}
                         disabled={db.aktiv || aktionLaeuft !== null}
                       >

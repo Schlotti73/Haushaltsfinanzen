@@ -144,6 +144,44 @@ def backup_liste(_: Benutzer = Depends(require_admin)):
     return eintraege
 
 
+def _backup_zip_pfad(name: str) -> Path:
+    """Pfad zum Backup-ZIP mit diesem Namen, oder HTTPException.
+
+    Der Name kommt aus der URL und darf nie in einen Pfad wandern, ohne auf das
+    Zeitstempel-Muster geprueft zu sein - sonst holt ein "../../finanzen.db"
+    jede Datei vom Server. Gleiche Pruefung wie im Restore-Endpoint.
+    """
+    if not re.match(r"^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}$", name):
+        raise HTTPException(400, "Ungültiger Backup-Name")
+    cfg = _lese_backup_cfg()
+    ziel = Path(cfg.get("ziel_ordner") or str(_DATEN / "backups"))
+    zip_pfad = ziel / f"{name}.zip"
+    if not zip_pfad.is_file():
+        raise HTTPException(404, "Backup-ZIP nicht gefunden")
+    return zip_pfad
+
+
+@router.get("/backup/herunterladen/{name}")
+def backup_herunterladen(name: str, _: Benutzer = Depends(require_admin)):
+    """Gibt das Backup-ZIP zum Herunterladen heraus.
+
+    Damit landet eine Sicherung auch ausserhalb des Rechners, auf dem die
+    Anwendung laeuft: der Zielordner liegt sonst auf derselben Platte wie die
+    Datenbank und waere bei einem Plattenschaden mit weg.
+
+    Bewusst ein FileResponse hinter einem normalen Link (die Sitzung steckt im
+    Cookie, nicht in einem Header): der Browser streamt die Datei auf die
+    Platte. Ein Blob-Download durch das Frontend muesste das ganze ZIP - mit
+    allen Belegen darin leicht dreistellige MB - erst im Speicher halten.
+    """
+    zip_pfad = _backup_zip_pfad(name)
+    return FileResponse(
+        str(zip_pfad),
+        media_type="application/zip",
+        filename=f"haushaltsfinanz-backup-{name}.zip",
+    )
+
+
 # Datei-Ablagen, die scripts/backup.py mitsichert (gleiche Schluessel dort in
 # DATEI_ABLAGEN). Der Restore spiegelt sie auf den Backup-Stand, damit nach dem
 # Wiederherstellen nicht jeder Beleg und jeder archivierte Kontoauszug der DB
@@ -243,13 +281,7 @@ def backup_wiederherstellen(
     ab – sonst überschriebe z.B. ein Backup der DB „Firma“ unbemerkt die gerade
     aktive DB „Privat“. Mit erzwingen=true ist das bewusst möglich.
     """
-    if not re.match(r"^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}$", name):
-        raise HTTPException(400, "Ungültiger Backup-Name")
-    cfg = _lese_backup_cfg()
-    ziel = Path(cfg.get("ziel_ordner") or str(_DATEN / "backups"))
-    zip_pfad = ziel / f"{name}.zip"
-    if not zip_pfad.exists():
-        raise HTTPException(404, "Backup-ZIP nicht gefunden")
+    zip_pfad = _backup_zip_pfad(name)
 
     meta = _lese_backup_meta(zip_pfad)
     if meta and not erzwingen:

@@ -155,14 +155,24 @@ export default function ImportRegeln() {
       {r.stufe === 'haendler' && (
         <span className="text-xs text-amber-600">Notiz: {r.notiz_text || r.name}</span>
       )}
-      <button type="button" className="text-xs text-blue-600 hover:underline" onClick={() => oeffneBearbeiten(r)}>
+      {/* Aktiv ist ein Dauerzustand, kein Vorgang - dafuer der Schieber, wie bei
+          den Kassenzettel-Mustern eine Karte weiter. Ein Knopf, dessen
+          Beschriftung zwischen "Aktivieren" und "Deaktivieren" wechselt, laesst
+          ausserdem offen, ob er den Zustand nennt oder das, was er tut. */}
+      <label className="flex items-center gap-1.5 cursor-pointer text-xs text-gray-500">
+        <input type="checkbox" role="switch" checked={r.aktiv} onChange={() => onToggleAktiv(r)}
+               className="schieber schieber-sm" />
+        aktiv
+      </label>
+      <button type="button" className="btn-secondary btn-sm" onClick={() => oeffneBearbeiten(r)}>
         Bearbeiten
       </button>
-      <button type="button" className="text-xs text-gray-500 hover:underline" onClick={() => onToggleAktiv(r)}>
-        {r.aktiv ? 'Deaktivieren' : 'Aktivieren'}
-      </button>
-      <button type="button" className="text-xs text-red-600 hover:underline" onClick={() => onLoeschen(r)}>
-        Löschen
+      {/* Symbol statt Wort: die Liste wird lang, und ein Dutzend ausgeschriebener
+          roter Knoepfe untereinander ist eine Spalte Rot. Dieselbe Machart wie
+          das Loeschen in Buchungen, Empfaenger und Geschaeften. */}
+      <button type="button" className="btn-danger btn-icon-sm" title="Löschen" aria-label="Löschen"
+              onClick={() => onLoeschen(r)}>
+        ×
       </button>
     </div>
   )
@@ -196,7 +206,7 @@ export default function ImportRegeln() {
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <h4 className="text-sm font-semibold text-gray-600">Stufe 1 – Anbieter</h4>
-            <button type="button" className="text-xs text-blue-600 hover:underline"
+            <button type="button" className="btn-secondary btn-sm"
                     onClick={() => oeffneNeu({ stufe: 'anbieter' })}>
               + Anbieter-Regel
             </button>
@@ -208,7 +218,7 @@ export default function ImportRegeln() {
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <h4 className="text-sm font-semibold text-gray-600">Stufe 2 – Händler</h4>
-            <button type="button" className="text-xs text-blue-600 hover:underline"
+            <button type="button" className="btn-secondary btn-sm"
                     onClick={() => oeffneNeu({ stufe: 'haendler' })}>
               + Händler-Regel
             </button>
@@ -231,7 +241,7 @@ export default function ImportRegeln() {
       <div className="border-t border-gray-100 pt-4 space-y-2">
         <div className="flex items-center justify-between">
           <h4 className="text-sm font-semibold text-gray-600">Vorschläge aus dem Bestand</h4>
-          <button type="button" className="text-xs text-blue-600 hover:underline" onClick={ladeVorschlaege}>
+          <button type="button" className="btn-secondary btn-sm" onClick={ladeVorschlaege}>
             Bankempfänger auswerten
           </button>
         </div>
@@ -245,7 +255,7 @@ export default function ImportRegeln() {
                 <span className="w-12 text-right text-gray-500">{v.anzahl}×</span>
                 <span className="font-medium">{v.schluesselwort}</span>
                 <span className="text-xs text-gray-400 flex-1 truncate">{v.beispiel}</span>
-                <button type="button" className="text-xs text-blue-600 hover:underline"
+                <button type="button" className="btn-secondary btn-sm"
                         onClick={() => oeffneNeu({ name: v.schluesselwort, schluesselwoerter: v.schluesselwort })}>
                   Regel anlegen
                 </button>

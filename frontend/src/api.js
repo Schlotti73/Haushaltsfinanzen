@@ -246,6 +246,11 @@ export const einstellungenApi = {
   putBackup:              (data) => api.put('/einstellungen/backup', data),
   backupJetzt:            ()     => api.post('/einstellungen/backup/jetzt'),
   backupListe:            ()     => api.get('/einstellungen/backup/liste'),
+  // Kein axios-Aufruf, sondern die URL fuer einen normalen Link: der Browser
+  // streamt das ZIP (mit allen Belegen darin) auf die Platte, statt es als
+  // Blob komplett im Speicher zu halten. Die Sitzung steckt im Cookie und
+  // geht beim Link-Klick mit.
+  backupDownloadUrl:      (name) => `/api/einstellungen/backup/herunterladen/${name}`,
   // erzwingen=true nur nach ausdrücklicher Bestätigung: überschreibt die aktive
   // DB mit einem Backup aus einer anderen registrierten Datenbank
   backupWiederherstellen: (name, erzwingen = false) =>

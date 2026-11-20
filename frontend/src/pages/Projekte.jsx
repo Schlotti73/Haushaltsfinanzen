@@ -415,13 +415,22 @@ function Planung({ projektId, projektName, isAdmin, confirm, darlehenKonten, kon
                     {offen && (
                       <tr className="bg-gray-50">
                         <td colSpan={isAdmin ? 6 : 5} className="px-3 py-2">
-                          {p.buchungen.length === 0 && <span className="text-gray-400 text-xs">Keine verknüpften Buchungen</span>}
+                          {p.buchungen.length === 0 && <span className="text-gray-400">Keine verknüpften Buchungen</span>}
+                          {/* Schriftgroesse wie in der Posten-Tabelle darueber (text-sm der
+                              Tabelle, hier geerbt), und abwechselnde Zeilen wie dort: die Liste
+                              wird bei einem Posten mit vielen Buchungen lang, und Datum, Name
+                              und Betrag stehen weit auseinander. */}
                           {p.buchungen.map((b) => (
-                            <div key={b.id} className="flex items-center gap-3 text-xs py-0.5">
+                            <div key={b.id} className="flex items-center gap-3 py-1 px-2 rounded odd:bg-white even:bg-gray-50">
                               <span className="text-gray-500 w-24">{b.datum}</span>
                               <span className="flex-1">{b.empfaenger || '–'}</span>
                               <span className={`font-mono ${b.betrag < 0 ? 'text-red-500' : 'text-green-600'}`}>{fmt(b.betrag)}</span>
-                              {isAdmin && <button className="text-red-400 hover:text-red-600" title="Verknüpfung lösen" onClick={() => loesen(p.id, b.id)}>×</button>}
+                              {isAdmin && (
+                                <button className="btn-danger btn-icon-sm" title="Verknüpfung lösen"
+                                        aria-label="Verknüpfung lösen" onClick={() => loesen(p.id, b.id)}>
+                                  ×
+                                </button>
+                              )}
                             </div>
                           ))}
                         </td>

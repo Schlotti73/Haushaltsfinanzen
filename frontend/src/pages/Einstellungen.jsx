@@ -484,7 +484,7 @@ export default function Einstellungen() {
           <h3 className="font-semibold text-gray-700">Vorhandene Backups</h3>
           <button
             type="button"
-            className="btn-secondary text-xs px-3 py-1"
+            className="btn-secondary btn-sm"
             onClick={ladeBackups}
             disabled={backupsLaden}
           >
@@ -528,28 +528,38 @@ export default function Einstellungen() {
                           </span>
                           <button
                             type="button"
-                            className="px-2 py-0.5 rounded bg-red-600 hover:bg-red-700 text-white font-medium"
+                            className="btn-danger btn-sm"
                             onClick={() => onWiederherstellenBestaetigt(b.name, b.fremd)}
                           >
                             {b.fremd ? 'Trotzdem wiederherstellen' : 'Ja, wiederherstellen'}
                           </button>
                           <button
                             type="button"
-                            className="px-2 py-0.5 rounded bg-gray-200 hover:bg-gray-300 text-gray-700"
+                            className="btn-secondary btn-sm"
                             onClick={() => setConfirm(null)}
                           >
                             Abbrechen
                           </button>
                         </span>
                       ) : (
-                        <button
-                          type="button"
-                          className="text-xs text-blue-600 hover:text-blue-800 disabled:text-gray-400"
-                          onClick={() => setConfirm(b.name)}
-                          disabled={restoring !== null}
-                        >
-                          {restoring === b.name ? 'Stellt wieder her…' : 'Wiederherstellen'}
-                        </button>
+                        <span className="inline-flex items-center gap-2">
+                          <a
+                            className="btn-secondary btn-sm"
+                            href={einstellungenApi.backupDownloadUrl(b.name)}
+                            download
+                            title="ZIP herunterladen – Sicherung außerhalb dieses Rechners ablegen"
+                          >
+                            Herunterladen
+                          </a>
+                          <button
+                            type="button"
+                            className="btn-secondary btn-sm"
+                            onClick={() => setConfirm(b.name)}
+                            disabled={restoring !== null}
+                          >
+                            {restoring === b.name ? 'Stellt wieder her…' : 'Wiederherstellen'}
+                          </button>
+                        </span>
                       )}
                     </td>
                   </tr>
