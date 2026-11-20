@@ -439,12 +439,24 @@ function MehrfachAendernDialog({ anzahl, kategorien, empfaenger, onClose, onSave
 
 // Status- und Herkunfts-Badges. Von Tabelle und Karte gemeinsam genutzt, damit
 // beide Darstellungen nicht auseinanderlaufen.
-function StatusBadges({ b, hhbAktiv, onJetztBuchen, onTransfer, onHhb }) {
+function StatusBadges({ b, hhbAktiv, onStatusUmschalten, onTransfer, onHhb }) {
+  const gebucht = b.status === 'gebucht'
   return (
-    <div className="flex gap-1 flex-wrap">
-      {b.status === 'geplant'
-        ? <span className="badge badge-blue cursor-pointer" title="Doppelklick: jetzt buchen" onDoubleClick={() => onJetztBuchen(b)}>geplant</span>
-        : <span className="badge badge-green">gebucht</span>}
+    <div className="flex gap-1 flex-wrap items-center">
+      {/* Schieber statt Badge: der Zustand ist einer von zwei und wird hier auch
+          umgestellt. Das Wort steht im Reiter, die Bahn traegt die Farbe. */}
+      <button
+        type="button"
+        role="switch"
+        aria-checked={gebucht}
+        aria-label={`Status: ${gebucht ? 'gebucht' : 'geplant'}`}
+        className="statusschieber"
+        title={gebucht ? 'Zurück auf geplant' : 'Jetzt buchen'}
+        onClick={() => onStatusUmschalten(b)}
+      >
+        <span className="reiter" aria-hidden="true" />
+        <span className="wort">{gebucht ? 'gebucht' : 'geplant'}</span>
+      </button>
       {b.quelle === 'import' && <span className="badge bg-sky-100 text-sky-800" title="Via Kontoauszug importiert">↓ Import</span>}
       {b.ist_transfer && <span className="badge bg-purple-100 text-purple-800 cursor-pointer" onClick={() => onTransfer(b)}>Transfer</span>}
       {hhbAktiv && b.verknuepft_mit_id && <span className="badge bg-teal-100 text-teal-800 cursor-pointer" onClick={() => onHhb(b)}>HHB ✓</span>}
@@ -574,12 +586,14 @@ export default function Buchungen() {
   // waehrend die vorige Abfrage noch laeuft, darf deren spaeter eintreffendes
   // Ergebnis die Liste nicht mehr ueberschreiben.
   const ladeNr = useRef(0)
+  const saldoNr = useRef(0)
 
-  const load = useCallback(() => {
-    const nr = ++ladeNr.current
-    const aktuell = () => nr === ladeNr.current
-    setLoading(true)
-    setAuswahl(new Set())
+  // Die Summen im Kopf haengen am Kontostand, nicht an der Liste: aendert eine
+  // einzelne Buchung Status, Betrag, Datum oder Konto, stimmen sie nicht mehr.
+  // Darum stehen sie hier getrennt und werden nach jeder Aenderung neu geholt.
+  const ladeSalden = useCallback(() => {
+    const nr = ++saldoNr.current
+    const aktuell = () => nr === saldoNr.current
     const heute = new Date().toISOString().slice(0, 10)
     const monatBis = (offset) => {
       const now = new Date()
@@ -589,13 +603,6 @@ export default function Buchungen() {
     }
     const kombiniertMatch = filter.status?.match(/^gebucht_geplant_m(\d)$/)
     const resolvedFilter = resolveFilter(filter)
-    const params = { seite, pro_seite: proSeite, ...Object.fromEntries(Object.entries(resolvedFilter).filter(([, v]) => v !== '')) }
-    buchungenApi.list(params)
-      .then((r) => {
-        if (!aktuell()) return
-        setItems(r.data.items); setGesamt(r.data.gesamt)
-      })
-      .finally(() => { if (aktuell()) setLoading(false) })
 
     if (filter.konto_id) {
       kontenApi.saldo(filter.konto_id).then((r) => {
@@ -633,17 +640,42 @@ export default function Buchungen() {
       setStandJahresende(null)
       setPrognose(null)
     }
-  }, [seite, filter])
+  }, [filter])
 
-  const patchItems = (patches) => setItems(prev => prev.map(b => {
-    const p = patches.find(u => u.id === b.id)
-    return p ? { ...b, ...p } : b
-  }))
+  const load = useCallback(() => {
+    const nr = ++ladeNr.current
+    const aktuell = () => nr === ladeNr.current
+    setLoading(true)
+    setAuswahl(new Set())
+    const params = { seite, pro_seite: proSeite, ...Object.fromEntries(Object.entries(resolveFilter(filter)).filter(([, v]) => v !== '')) }
+    buchungenApi.list(params)
+      .then((r) => {
+        if (!aktuell()) return
+        setItems(r.data.items); setGesamt(r.data.gesamt)
+      })
+      .finally(() => { if (aktuell()) setLoading(false) })
+    ladeSalden()
+  }, [seite, filter, ladeSalden])
+
+  // Nach einer einzelnen Aenderung bleibt die Liste stehen (die Buchung soll
+  // nicht wegspringen), die Summen im Kopf werden aber neu berechnet.
+  const patchItems = (patches) => {
+    setItems(prev => prev.map(b => {
+      const p = patches.find(u => u.id === b.id)
+      return p ? { ...b, ...p } : b
+    }))
+    ladeSalden()
+  }
 
   const beendeMehrfachModus = () => { setMehrfachModus(false); setAuswahl(new Set()); setAlleGefiltert(false) }
 
-  const handleJetztBuchen = async (b) => {
-    const r = await buchungenApi.update(b.id, { status: 'gebucht' })
+  // Buchen geht ohne Rueckfrage: ein geplanter Posten, der eintrifft, ist der
+  // Alltagsfall. Zurueck auf geplant fragt nach - das nimmt den Betrag wieder
+  // aus dem Kontostand, und ein Fehlgriff faellt erst beim Abgleich auf.
+  const handleStatusUmschalten = async (b) => {
+    const zurueck = b.status === 'gebucht'
+    if (zurueck && !await confirm('Buchung zurück auf geplant setzen?', { knopf: 'Zurücksetzen', gefahr: false })) return
+    const r = await buchungenApi.update(b.id, { status: zurueck ? 'geplant' : 'gebucht' })
     patchItems([r.data])
   }
 
@@ -691,7 +723,7 @@ export default function Buchungen() {
   // Gemeinsame Handler fuer Tabellenzeile und Karte
   const zeilenProps = {
     hhbAktiv,
-    onJetztBuchen: handleJetztBuchen,
+    onStatusUmschalten: handleStatusUmschalten,
     onTransfer: setTransferItem,
     onHhb: setHhItem,
     onEdit: handleEdit,
