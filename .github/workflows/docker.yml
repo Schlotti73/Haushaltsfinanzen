@@ -33,7 +33,12 @@ jobs:
       packages: write
 
     steps:
-      - uses: actions/checkout@v4
+      # Die vier Actions stehen auf den Hauptnummern, die auf Node 24 laufen
+      # (checkout 5+, die Docker-Actions eine Stufe darueber). Die Vorgaenger
+      # brachten Node 20 mit, das die Runner nur noch ersatzweise ausfuehren -
+      # eine Warnung heute, ein Abbruch, sobald GitHub die Bruecke wegnimmt.
+      # Verlangt Runner 2.327.1 oder neuer; ubuntu-latest bei GitHub ist darueber.
+      - uses: actions/checkout@v7
 
       - name: Version und Bildname bestimmen
         id: version
@@ -49,12 +54,12 @@ jobs:
           # zwar erst beim Exportieren, nach allen teuren Schritten.
           echo "image=ghcr.io/$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')/haushaltsfinanz" >> "$GITHUB_OUTPUT"
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
 
       # load statt push: das Image geht erst in den lokalen Daemon, damit der
       # Rauchtest es starten kann. Veroeffentlicht wird es weiter unten.
       - name: Bauen
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: docker/Dockerfile
@@ -70,7 +75,7 @@ jobs:
 
       - name: Bei ghcr.io anmelden
         if: github.ref_type == 'tag' || inputs.veroeffentlichen
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
