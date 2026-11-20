@@ -38,14 +38,14 @@ from typing import Optional
 import numpy as np
 import pytesseract
 
-from app.config import settings
+# Setzt tesseract_cmd und TESSDATA_PREFIX - siehe dort, warum der
+# Sprachdaten-Ordner nicht als --tessdata-dir mitgegeben wird.
+from app.services.ocr.tess import KONFIGURATION
 
 try:  # OpenCV ist optional – ohne es greift der Direkt-OCR-Fallback
     import cv2
 except ImportError:  # pragma: no cover
     cv2 = None  # type: ignore
-
-pytesseract.pytesseract.tesseract_cmd = str(settings.tesseract_cmd)
 
 # Auflösung, bei der Thermobelege am zuverlässigsten erkannt werden (Tuning-Ergebnis).
 _ZIELBREITE = 1000
@@ -63,8 +63,7 @@ class OcrErgebnis:
 
 
 def _tess_config(sprache: str) -> str:
-    tessdata = str(settings.tessdata_dir).replace("\\", "/")
-    return f"--tessdata-dir {tessdata} --psm 6"
+    return KONFIGURATION
 
 
 def _ocr(img: np.ndarray, sprache: str) -> tuple[str, float, int]:

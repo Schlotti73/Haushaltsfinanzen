@@ -6,18 +6,14 @@ from pathlib import Path
 
 import pytesseract
 
-from app.config import settings
+# Setzt tesseract_cmd und TESSDATA_PREFIX - siehe dort, warum der
+# Sprachdaten-Ordner nicht als --tessdata-dir mitgegeben wird.
+from app.services.ocr.tess import KONFIGURATION
 from app.services.ocr.preprocess import verbessere_und_lies
-
-pytesseract.pytesseract.tesseract_cmd = str(settings.tesseract_cmd)
 
 
 def _config(sprache: str) -> tuple[str, str]:
-    """--psm 6 (einheitlicher Textblock) liefert auf schmalen Kassenzettel-Fotos
-    deutlich bessere Ergebnisse als die automatische Seitensegmentierung
-    (Standard-PSM 3), die bei langen schmalen Streifen oft fehlschlägt."""
-    tessdata_pfad = str(settings.tessdata_dir).replace("\\", "/")
-    return sprache, f"--tessdata-dir {tessdata_pfad} --psm 6"
+    return sprache, KONFIGURATION
 
 
 def bild_zu_text(bildpfad: Path, sprache: str = "deu") -> str:
