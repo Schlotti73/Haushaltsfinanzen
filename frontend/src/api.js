@@ -197,27 +197,55 @@ export const empfaengerApi = {
 
 // ── Kontoauszug-Import ───────────────────────────────────────────────────────────────
 export const importPdfApi = {
-  vorschau: (kontoId, datei) => {
+  vorschau: (kontoId, datei, profilId) => {
     const form = new FormData()
     form.append('konto_id', kontoId)
     form.append('datei', datei)
+    if (profilId) form.append('profil_id', profilId)
     return api.post('/import/pdf/vorschau', form, { headers: { 'Content-Type': 'multipart/form-data' } })
   },
-  commit: (kontoId, datei, hashes, treffer, auffrischen) => {
+  // `zeitraum` ist der im Dialog bestaetigte Auszugszeitraum ({von, bis}).
+  // Nur bei CSV gefuellt: daraus ergibt sich, welche PDF-Zeilen spaeter
+  // gesperrt sind. Fehlt er, leitet das Backend ihn aus den Buchungsdaten ab
+  // und merkt den Eintrag als ungeprueft.
+  commit: (kontoId, datei, hashes, treffer, auffrischen, profilId, zeitraum) => {
     const form = new FormData()
     form.append('konto_id', kontoId)
     form.append('datei', datei)
     form.append('hashes', JSON.stringify(hashes ?? []))
     if (treffer && Object.keys(treffer).length) form.append('treffer', JSON.stringify(treffer))
     if (auffrischen) form.append('auffrischen', 'true')
+    if (profilId) form.append('profil_id', profilId)
+    if (zeitraum?.von && zeitraum?.bis) {
+      form.append('zeitraum_von', zeitraum.von)
+      form.append('zeitraum_bis', zeitraum.bis)
+    }
     return api.post('/import/pdf/commit', form, { headers: { 'Content-Type': 'multipart/form-data' } })
   },
+
+  // CSV-Profile: beim PDF ist das Layout der Parser, bei CSV dieses Profil.
+  csvErkennen: (datei) => {
+    const form = new FormData()
+    form.append('datei', datei)
+    return api.post('/import/pdf/csv-erkennen', form, { headers: { 'Content-Type': 'multipart/form-data' } })
+  },
+  csvProfile:        ()         => api.get('/import/pdf/csv-profile'),
+  csvProfilAnlegen:  (daten)    => api.post('/import/pdf/csv-profile', daten),
+  csvProfilAendern:  (id, daten) => api.put(`/import/pdf/csv-profile/${id}`, daten),
+  csvProfilLoeschen: (id)       => api.delete(`/import/pdf/csv-profile/${id}`),
 
   // Archiv der importierten Auszuege
   auszuege:      (kontoId) => api.get('/import/pdf/auszuege', { params: { konto_id: kontoId } }),
   // Direkte URL fuer das <iframe>; der Endpunkt liefert Content-Disposition
   // "inline", damit der PDF-Viewer des Browsers rendert statt herunterzuladen.
   auszugDateiUrl: (auszugId) => `/api/import/pdf/auszuege/${auszugId}/datei`,
+  // Zerlegte CSV fuer die Tabellenansicht - im <iframe> waere sie eine Spalte
+  // Rohtext, und Kodierung und Trennzeichen kennt nur das Backend.
+  auszugTabelle: (auszugId) => api.get(`/import/pdf/auszuege/${auszugId}/tabelle`),
+  // Format und Zeitraum nachtraeglich richtigstellen. Beides traegt die
+  // Zeitraum-Sperre, und beim Altbestand ist beides geraten: das Format aus
+  // der Dateiendung, der Zeitraum aus min/max der Buchungsdaten.
+  auszugAendern: (auszugId, felder) => api.patch(`/import/pdf/auszuege/${auszugId}`, felder),
   auszugLoeschen: (auszugId) => api.delete(`/import/pdf/auszuege/${auszugId}`),
 }
 

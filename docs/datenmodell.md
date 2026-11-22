@@ -28,7 +28,7 @@ kategorien ─< planung                     (Jahresbudget, vgl. "Planung Gehalt"
 | `kategorien` | Zweistufiger Baum über `uebergeordnet_id`, `art` = einnahme/ausgabe/beides |
 | `tags` | Freie organisatorische Tags (n:m zu Buchungen) |
 | `projekte` | Darlehen/Bauprojekt/Sonstiges (ersetzt fixe Sheets "Haus"/"Neubau") |
-| `buchungen` | Zentrale Bewegungstabelle, `status` geplant/gebucht, `quelle` |
+| `buchungen` | Zentrale Bewegungstabelle, `status` geplant/gebucht, `quelle`. „Überfällig“ ist **kein** dritter Status, sondern abgeleitet: `status='geplant' AND datum < heute` |
 | `buchung_tags` | n:m Buchung↔Tag |
 | `belege` | Datei-Anhänge (Pfad im Dateisystem) |
 | `buchung_positionen` | Aufteilung eines Belegs auf mehrere Kategorien |

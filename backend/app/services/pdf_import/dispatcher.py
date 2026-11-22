@@ -72,3 +72,48 @@ def parse_pdf(pdf_bytes: bytes, db: Session) -> ParseResult:
         b.empfaenger = _titelfall(b.empfaenger)
 
     return result
+
+
+def ist_pdf(daten: bytes) -> bool:
+    return daten[:5].startswith(b"%PDF")
+
+
+def parse_datei(daten: bytes, db: Session, profil_id: Optional[int] = None) -> ParseResult:
+    """Weiche nach Dateityp: PDF wie bisher, alles andere als CSV nach Profil.
+
+    Alles hinter dieser Funktion ist formatblind – Vorschau, Dublettenprüfung,
+    Import-Regeln, Haushaltsbuch-Abgleich und Archiv arbeiten auf dem
+    `ParseResult` und müssen nicht wissen, woher es kommt.
+
+    Ohne passendes Profil wird `ProfilFehlt` geworfen, mit dem
+    Erkennungsvorschlag im Gepäck: der Aufrufer zeigt damit die
+    Zuordnungsmaske, statt den Import mit einem Fehler abzubrechen.
+    """
+    if ist_pdf(daten):
+        return parse_pdf(daten, db)
+
+    # Erst hier importiert: der CSV-Zweig soll den PDF-Zweig nicht mit Modulen
+    # belasten, die er nie braucht (und umgekehrt).
+    from app.services.csv_import.erkennung import erkennen
+    from app.services.csv_import.parser import CsvProfilParser
+    from app.services.csv_import.profile import ProfilFehlt, profil_finden, profil_laden
+
+    if profil_id:
+        profil = profil_laden(db, profil_id)
+    else:
+        vorschlag = erkennen(daten)
+        if vorschlag.get("fehler"):
+            raise ProfilFehlt(vorschlag)
+        profil, quote = profil_finden(db, vorschlag.get("kopf_signatur") or [])
+        if not profil:
+            raise ProfilFehlt(vorschlag)
+        if quote < 1.0:
+            # Teiltreffer: Spalten haben sich geändert. Das Profil gilt
+            # weiterhin, der Benutzer soll es aber zu Gesicht bekommen.
+            vorschlag["profil_abweichend"] = profil["id"]
+            raise ProfilFehlt(vorschlag | {"profil": profil, "quote": quote})
+
+    result = CsvProfilParser(profil).parse(daten)
+    for b in result.buchungen:
+        b.empfaenger = _titelfall(b.empfaenger)
+    return result

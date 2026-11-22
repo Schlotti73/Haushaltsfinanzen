@@ -303,6 +303,37 @@ class KontoauszugMuster(Base):
     erstellt_am: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
 
 
+class CsvProfil(Base):
+    """Bank-Profil für den generischen CSV-Import.
+
+    Gegenstück zu `kontoauszug_muster`, aber mit umgekehrtem Kräfteverhältnis:
+    beim PDF ist das Layout der Parser und das Muster nur ein Hinweis, bei CSV
+    *ist* dieses Profil der Parser. Entsprechend steht hier alles, was eine
+    Bank von der anderen unterscheidet, als Daten – geänderte Spaltennamen
+    kostet dann eine Korrektur in der Oberfläche statt eines Releases.
+
+    `struktur`   JSON: kodierung, trennzeichen, kopfzeile, datum_format,
+                 dezimal, betrag_modus, saldo_modus und die Saldo-Marken.
+    `zuordnung`  JSON: Zielfeld -> Spaltenname (oder Liste von Spaltennamen,
+                 für über mehrere Spalten verteilte Verwendungszwecke).
+    `kopf_signatur` JSON: die Spaltenzeile der Beispieldatei. Daran erkennt der
+                 Import dasselbe Format wieder, ohne dass der Benutzer die Bank
+                 angeben muss.
+    """
+
+    __tablename__ = "csv_profil"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    bank_key: Mapped[str] = mapped_column(String, nullable=False, unique=True)
+    struktur: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    zuordnung: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    kopf_signatur: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    aktiv: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    notiz: Mapped[Optional[str]] = mapped_column(Text)
+    erstellt_am: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+
+
 class ImportRegel(Base):
     """Normalisiert den Bankrohtext beim Kontoauszug-Import (Phase 16).
 
@@ -403,6 +434,14 @@ class Buchung(Base):
     import_verwendungszweck: Mapped[Optional[str]] = mapped_column(Text)
     import_empfaenger: Mapped[Optional[str]] = mapped_column(String)
     import_iban: Mapped[Optional[str]] = mapped_column(String)
+    # Nur aus strukturierten Formaten (CSV-Export, später CAMT). Die
+    # PDF-Auszüge liefern das nicht, deshalb ist der Altbestand hier leer.
+    # `umsatzart` ist der Geschäftsvorfall im Klartext ("SEPA Lastschrift",
+    # "Kartenzahlung"), `mandatsreferenz` die pro Vertrag stabile Kennung einer
+    # Lastschrift und damit ein härteres Kriterium als jedes Textmuster.
+    import_umsatzart: Mapped[Optional[str]] = mapped_column(String)
+    import_mandatsreferenz: Mapped[Optional[str]] = mapped_column(String)
+    import_referenz: Mapped[Optional[str]] = mapped_column(String)
     erstellt_von: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("benutzer.id", ondelete="SET NULL"))
     erstellt_am: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
     # Phase 7.3: Transfers
@@ -464,10 +503,22 @@ class Kontoauszug(Base):
     # statt Datei und Zeile zu verdoppeln.
     datei_hash: Mapped[str] = mapped_column(String, nullable=False)
     bank: Mapped[Optional[str]] = mapped_column(String)
-    # Aus min/max Buchungsdatum abgeleitet - die Parser lesen keinen Zeitraum
-    # aus dem PDF-Kopf (siehe services/pdf_import/base.py: ParseResult).
+    # 'pdf' | 'csv' - aus der Dateiendung, nicht aus dem Content-Type (siehe
+    # _datei_lesen in routers/import_pdf.py). Leer heisst "unbekannt" und wird
+    # wie "nicht CSV" behandelt: ein solcher Auszug deckt keinen Zeitraum ab.
+    # Traegt die Zeitraum-Sperre: nur CSV-Auszuege sperren.
+    format: Mapped[Optional[str]] = mapped_column(String)
+    # Vorbelegt aus min/max Buchungsdatum - die Parser lesen keinen Zeitraum
+    # aus dem Dateikopf (siehe services/pdf_import/base.py: ParseResult), auch
+    # die CSV-Profile nicht. Der abgeleitete Zeitraum ist damit immer zu eng:
+    # faengt der Auszug am 1. an und die erste Buchung am 3., fehlen zwei Tage.
+    # Beim CSV-Import wird er deshalb bestaetigt und ist danach nachtraeglich
+    # korrigierbar (PATCH /import/pdf/auszuege/{id}).
     zeitraum_von: Mapped[Optional[str]] = mapped_column(String)
     zeitraum_bis: Mapped[Optional[str]] = mapped_column(String)
+    # False = der Zeitraum ist nur abgeleitet. Sperren tut er trotzdem (zu eng
+    # ist harmlos, nur unscharf), die Liste weist ihn aber als ungeprueft aus.
+    zeitraum_bestaetigt: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     anzahl_buchungen: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     importiert_von: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("benutzer.id", ondelete="SET NULL"))
     importiert_am: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)

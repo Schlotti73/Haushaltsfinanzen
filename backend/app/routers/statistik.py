@@ -23,6 +23,20 @@ from app.database import get_db
 router = APIRouter(prefix="/statistik", tags=["statistik"])
 
 
+# Geplante Buchungen zählen in Monats- und Jahresübersicht mit – aber nur
+# künftige. Eine geplante Buchung, deren Termin vorbei ist, ist überfällig: das
+# Geld ist nicht geflossen und sie ist auch nicht abgeglichen worden. Sie in
+# einem vergangenen Monat mitzuzählen wäre die einzige Stelle der App, die Geld
+# ausweist, das es nicht gab – Kontosaldo (routers/konten.py) und die
+# Liquiditätskurve weiter unten lassen sie beide draußen.
+#
+# Gezählt wird gegen date('now'), nicht gegen einen Parameter: der Stichtag ist
+# "heute" und nichts, was der Aufrufer wählen könnte.
+GEBUCHT_ODER_KUENFTIG_GEPLANT = (
+    "(b.status = 'gebucht' OR (b.status = 'geplant' AND b.datum >= date('now')))"
+)
+
+
 # ── Jahres-/Monatsübersicht ──────────────────────────────────────────────────
 
 @router.get("/monatsuebersicht")
@@ -33,7 +47,7 @@ def monatsuebersicht(
     _=Depends(get_current_user),
 ):
     """Einnahmen, Ausgaben, Saldo je Monat (optional: Jahr-Filter, Konto-Filter)."""
-    where = ["b.status IN ('gebucht', 'geplant')", "b.ist_transfer = 0"]
+    where = [GEBUCHT_ODER_KUENFTIG_GEPLANT, "b.ist_transfer = 0"]
     params: dict = {}
     if jahr:
         where.append("strftime('%Y', b.datum) = :jahr")
@@ -65,7 +79,7 @@ def jahresuebersicht(
     _=Depends(get_current_user),
 ):
     """Einnahmen, Ausgaben, Saldo je Jahr."""
-    where = ["b.status IN ('gebucht', 'geplant')", "b.ist_transfer = 0"]
+    where = [GEBUCHT_ODER_KUENFTIG_GEPLANT, "b.ist_transfer = 0"]
     params: dict = {}
     if konto_id:
         where.append("b.konto_id = :konto_id")

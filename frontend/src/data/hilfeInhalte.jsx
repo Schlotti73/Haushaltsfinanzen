@@ -315,6 +315,38 @@ function ImportAbgleich() {
         <HilfeSchritt titel="Ergebnis" wert="Status gebucht" ton="gruen" />
       </HilfeFlow>
       <p>
+        <span className="font-medium">CSV ist die Quelle, das PDF das Archiv.</span> Beim
+        CSV-Import bestätigst du den Zeitraum des Auszugs. Lädst du später ein PDF hoch, dessen
+        Zeilen in diesen Zeitraum fallen, sind sie <span className="font-medium">gesperrt</span>:
+        sie lassen sich nur mit der vorhandenen Buchung verknüpfen oder überspringen, nicht
+        importieren. Die CSV liefert zur selben Zahlung mehr Felder (IBAN, Umsatzart,
+        Mandatsreferenz) und ist deshalb die bessere Quelle; das PDF bleibt nützlich – als Archiv
+        mit lesbarer Tabelle und als Nachweis hinter der Buchung.
+      </p>
+      <p>
+        Gesperrt ist eine Zeile aber nur, wenn es zu ihr auch eine{' '}
+        <span className="font-medium">Gegenbuchung</span> gibt. Fehlt die, kann nichts doppelt
+        gezählt werden und die Zeile bleibt importierbar – so füllt sich die Lücke, wenn der
+        CSV-Export der Bank abgeschnitten war (90-Tage-Grenze, aktiver Filter). Zeilen, die zusammen
+        eine vorhandene Sammelbuchung ergeben, gelten als gedeckt: einzeln trifft keine den Betrag,
+        zusammen schon.
+      </p>
+      <HilfeFlow>
+        <HilfeVerzweigung
+          label="PDF-Zeile im CSV-Zeitraum"
+          optionen={[
+            { label: 'Gegenbuchung da', schritte: [{ titel: 'gesperrt', wert: 'nur verknüpfen', ton: 'gelb' }] },
+            { label: 'keine Gegenbuchung', schritte: [{ titel: 'frei', wert: 'importierbar', ton: 'gruen' }] },
+          ]}
+        />
+      </HilfeFlow>
+      <p>
+        Der Zeitraum steht in der Liste „Gespeicherte Kontoauszüge" und ist dort über das
+        Stift-Symbol änderbar, zusammen mit dem Format. Beim Altbestand ist beides geraten – der
+        Zeitraum aus dem ersten und letzten Buchungsdatum (und damit eher zu eng), das Format aus
+        der Dateiendung. Ein Auszug ohne erkanntes Format deckt nichts ab und sperrt nichts.
+      </p>
+      <p>
         Nur die Toleranz für „Ähnlich" ist einstellbar – unter „Einstellungen" als Betrags- und
         Datumstoleranz. Die Schwelle für „Verdacht" ist im Code fest hinterlegt und dort nicht zu
         finden.
@@ -362,6 +394,7 @@ function WiederkehrendLiquiditaet() {
         <HilfeVerzweigung
           optionen={[
             { label: 'Status geplant', schritte: [{ titel: 'Wirkung', wert: 'zählt in der Kurve', ton: 'blau' }] },
+            { label: 'Termin vorbei', schritte: [{ titel: 'überfällig', wert: 'zählt nirgends', ton: 'gelb' }] },
             { label: 'Status gebucht', schritte: [{ titel: 'Wirkung', wert: 'steckt im Saldo', ton: 'gruen' }] },
           ]}
         />
@@ -524,6 +557,18 @@ function Buchungen() {
         verknüpfen, die dadurch auf „gebucht" wechselt (siehe „Abgleich beim Import").
       </p>
       <p>
+        <span className="font-medium">Überfällig</span> ist ein dritter Zustand, aber kein dritter
+        Status: In der Datenbank steht weiter „geplant" – überfällig heißt nur, dass der Termin vor
+        heute liegt. Der Schieber wird dann gelb und das Wort wechselt; ein Klick setzt die Buchung
+        wie immer auf „gebucht". Über den Statusfilter „Überfällig" bekommst du genau diese Zeilen;
+        dorthin verweist auch die Erinnerung auf dem Dashboard.
+      </p>
+      <p>
+        Entweder ist die Zahlung tatsächlich gelaufen und nur nicht abgeglichen, oder die Vorlage
+        dahinter ist tot. Überfällige Buchungen zählen deshalb nirgends mit: nicht im Kontosaldo,
+        nicht in der Liquiditätskurve und auch nicht in der Monats- und Jahresübersicht.
+      </p>
+      <p>
         <span className="font-medium">Mehrfach bearbeiten:</span> Zeilen auswählen und für alle
         zusammen Kategorie, Empfänger oder Status setzen – gedacht für die Nacharbeit nach einem
         Import.
@@ -567,12 +612,20 @@ function Statistik() {
         <span className="font-medium">Welche Buchungen zählen</span>, hängt von der Auswertung ab –
         das erklärt die meisten Zahlen, die auf den ersten Blick nicht zusammenpassen:
       </p>
+      <p>
+        In Monats- und Jahresübersicht zählen geplante Buchungen mit, aber nur{' '}
+        <span className="font-medium">ab heute</span>: ein künftiger Monat soll zeigen, was er
+        kostet. Eine geplante Buchung, deren Termin vorbei ist, ist überfällig – das Geld ist nicht
+        geflossen und sie ist nicht abgeglichen worden. Sie bleibt draußen, so wie sie auch im
+        Kontosaldo und in der Liquiditätskurve draußen bleibt.
+      </p>
       <HilfeFlow>
         <HilfeVerzweigung
           label="Buchung"
           optionen={[
             { label: 'gebucht', schritte: [{ titel: 'überall', wert: 'zählt mit', ton: 'gruen' }] },
-            { label: 'geplant', schritte: [{ titel: 'Monat/Jahr ja', wert: 'Soll/Ist nein', ton: 'blau' }] },
+            { label: 'geplant ab heute', schritte: [{ titel: 'Monat/Jahr ja', wert: 'Soll/Ist nein', ton: 'blau' }] },
+            { label: 'überfällig', schritte: [{ titel: 'nirgends', wert: 'zählt nie', ton: 'gelb' }] },
             { label: 'Transfer', schritte: [{ titel: 'nirgends', wert: 'zählt nie', ton: 'grau' }] },
           ]}
         />

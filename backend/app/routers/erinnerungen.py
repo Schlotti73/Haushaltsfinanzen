@@ -132,7 +132,10 @@ def _ueberfaellig(db: Session, heute: date) -> Erinnerung | None:
               else f"{anzahl} geplante Buchungen sind überfällig"),
         zusatz="Termin liegt in der Vergangenheit",
         anzahl=anzahl,
-        ziel=f"/buchungen?status=geplant&datum_bis={(heute - relativedelta(days=1)).isoformat()}",
+        # Eigener Filterwert statt "geplant bis gestern": die Buchungsliste
+        # rechnet "überfällig" selbst aus (status geplant, Datum vor heute), und
+        # dieser Link muss nicht wissen, wie.
+        ziel="/buchungen?status=ueberfaellig",
     )
 
 

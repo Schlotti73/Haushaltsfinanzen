@@ -1,4 +1,4 @@
-"""Gemeinsame Tesseract-Einrichtung fuer Engine und Vorverarbeitung.
+r"""Gemeinsame Tesseract-Einrichtung fuer Engine und Vorverarbeitung.
 
 Warum der Sprachdaten-Ordner ueber die Umgebung und nicht ueber
 ``--tessdata-dir`` gesetzt wird: pytesseract zerlegt den config-String mit

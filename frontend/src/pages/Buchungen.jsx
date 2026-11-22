@@ -280,11 +280,25 @@ function fmtDatum(s) {
   return s
 }
 
+// Ueberfaellig ist kein gespeicherter Status, sondern ein gerechneter Zustand:
+// geplant und der Termin liegt vor heute. Darum auch hier eine Abkuerzung und
+// keine Erweiterung des CheckConstraints - ein dritter DB-Wert muesste von
+// jemandem umgeschaltet werden und waere in jeder "status IN (...)"-Abfrage der
+// App nachzutragen, sonst fiele die Buchung still aus Kurve und Statistik.
+function istUeberfaellig(b) {
+  return b.status === 'geplant' && b.datum < new Date().toISOString().slice(0, 10)
+}
+
 // Der Status "gebucht + geplant bis Monatsende" ist eine Frontend-Abkuerzung und
 // wird hier in die Filterfelder uebersetzt, die das Backend kennt. Liste und
 // Mehrfachaenderung nutzen dieselbe Aufloesung, damit "alle gefilterten" genau
 // die Buchungen trifft, die auch angezeigt werden.
 function resolveFilter(filter) {
+  if (filter.status === 'ueberfaellig') {
+    const gestern = new Date()
+    gestern.setDate(gestern.getDate() - 1)
+    return { ...filter, status: 'geplant', datum_bis: gestern.toISOString().slice(0, 10) }
+  }
   const m = filter.status?.match(/^gebucht_geplant_m(\d)$/)
   if (!m) return filter
   const now = new Date()
@@ -441,6 +455,12 @@ function MehrfachAendernDialog({ anzahl, kategorien, empfaenger, onClose, onSave
 // beide Darstellungen nicht auseinanderlaufen.
 function StatusBadges({ b, hhbAktiv, onStatusUmschalten, onTransfer, onHhb }) {
   const gebucht = b.status === 'gebucht'
+  // Dritter Zustand, aber kein dritter Status: ueberfaellig wird gerechnet und
+  // nie gespeichert. aria-checked bleibt deshalb zweiwertig - der Schieber
+  // schaltet weiter zwischen geplant und gebucht - und die gelbe Bahn haengt
+  // an einem eigenen Attribut.
+  const ueberfaellig = !gebucht && istUeberfaellig(b)
+  const wort = gebucht ? 'gebucht' : (ueberfaellig ? 'überfällig' : 'geplant')
   return (
     <div className="flex gap-1 flex-wrap items-center">
       {/* Schieber statt Badge: der Zustand ist einer von zwei und wird hier auch
@@ -449,13 +469,16 @@ function StatusBadges({ b, hhbAktiv, onStatusUmschalten, onTransfer, onHhb }) {
         type="button"
         role="switch"
         aria-checked={gebucht}
-        aria-label={`Status: ${gebucht ? 'gebucht' : 'geplant'}`}
+        data-ueberfaellig={ueberfaellig ? 'true' : undefined}
+        aria-label={`Status: ${wort}`}
         className="statusschieber"
-        title={gebucht ? 'Zurück auf geplant' : 'Jetzt buchen'}
+        title={gebucht
+          ? 'Zurück auf geplant'
+          : (ueberfaellig ? 'Termin ist vorbei – jetzt buchen' : 'Jetzt buchen')}
         onClick={() => onStatusUmschalten(b)}
       >
         <span className="reiter" aria-hidden="true" />
-        <span className="wort">{gebucht ? 'gebucht' : 'geplant'}</span>
+        <span className="wort">{wort}</span>
       </button>
       {b.quelle === 'import' && <span className="badge bg-sky-100 text-sky-800" title="Via Kontoauszug importiert">↓ Import</span>}
       {b.ist_transfer && <span className="badge bg-purple-100 text-purple-800 cursor-pointer" onClick={() => onTransfer(b)}>Transfer</span>}
@@ -903,6 +926,9 @@ export default function Buchungen() {
             <option value="">Alle</option>
             <option value="gebucht">Gebucht</option>
             <option value="geplant">Geplant</option>
+            {/* Abkuerzung wie gebucht_geplant_mN: resolveFilter macht daraus
+                "geplant bis gestern". Die Erinnerung verlinkt hierauf. */}
+            <option value="ueberfaellig">Überfällig</option>
             <option value="gebucht_geplant_m0">Gebucht + Geplant (dieser Monat)</option>
             <option value="gebucht_geplant_m1">Gebucht + Geplant (nächster Monat)</option>
             <option value="gebucht_geplant_m2">Gebucht + Geplant (+2 Monate)</option>

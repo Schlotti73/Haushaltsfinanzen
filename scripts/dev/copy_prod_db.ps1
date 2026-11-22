@@ -49,15 +49,35 @@ function Show-Registry {
 }
 
 function Stop-Port([int]$port) {
-    $procIds = netstat -ano | Select-String ":$port\s" | ForEach-Object {
-        ($_ -split '\s+')[-1]
-    } | Sort-Object -Unique
+    # Nur echte Listener: die Portnummer steht in netstat auch in der Spalte der
+    # Gegenstelle, ein zufaellig nach 8000 verbundener Client waere mit beendet
+    # worden. Gleiche Logik wie in stop.ps1.
+    if (Get-Command Get-NetTCPConnection -ErrorAction SilentlyContinue) {
+        $procIds = @(
+            Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue |
+                Select-Object -ExpandProperty OwningProcess | Sort-Object -Unique
+        )
+    } else {
+        $procIds = @(
+            netstat -ano | ForEach-Object {
+                $felder = $_.Trim() -split '\s+'
+                if ($felder.Count -ge 5 -and $felder[0] -eq 'TCP' -and $felder[1].EndsWith(":$port")) {
+                    $felder[-1]
+                }
+            } | Sort-Object -Unique
+        )
+    }
     foreach ($procId in $procIds) {
-        if ($procId -match '^\d+$' -and $procId -ne '0') {
+        if ($procId -match '^\d+$' -and $procId -ne '0' -and [int]$procId -ne $PID) {
             try {
                 Stop-Process -Id $procId -Force -ErrorAction Stop
                 Write-Host "  Port $port (PID $procId) beendet." -ForegroundColor Gray
-            } catch {}
+            } catch {
+                # Nicht verschlucken: ein stehengebliebener Server laesst die
+                # Kopie spaeter mitten im Schreibvorgang entstehen, und ohne
+                # Meldung sucht man den Grund an der falschen Stelle.
+                Write-Host "  WARNUNG Port $port (PID $procId) laeuft weiter: $($_.Exception.Message)" -ForegroundColor Yellow
+            }
         }
     }
 }

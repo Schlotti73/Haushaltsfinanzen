@@ -295,12 +295,24 @@
   .statusschieber[aria-checked="true"] .reiter,
   .statusschieber[aria-checked="true"] .wort { transform: translateX(1rem); }
   .statusschieber[aria-checked="true"] .wort { color: #15803d; }  /* green-700 */
+  /* Ueberfaellig: eine geplante Buchung, deren Termin vorbei ist. Kein dritter
+     Status, sondern ein gerechneter Zustand - darum ein eigenes Attribut und
+     nicht aria-checked, das weiter nur gebucht/geplant meint. Der Schieber
+     bleibt zweistufig, ein Klick setzt auf gebucht.
+     Gelb und nicht rot: nichts ist kaputt, es fehlt nur der Abgleich. Die
+     Rollen bleiben wie bei blau und gruen - die Bahn traegt die Farbe (nur
+     16px davon sind neben dem Reiter sichtbar), das Wort steht auf der weissen
+     Flaeche und braucht deshalb die dunklere Stufe. */
+  .statusschieber[data-ueberfaellig="true"] { background: #f59e0b; }         /* amber-500 */
+  .statusschieber[data-ueberfaellig="true"] .wort { color: #b45309; }        /* amber-700 */
   .statusschieber:focus-visible { @apply outline-none ring-2 ring-blue-500 ring-offset-1; }
   /* Eigene Farben statt Tailwind-Klassen, also greift das Umdrehen weiter oben
-     hier nicht - die drei Werte stehen darum von Hand. */
+     hier nicht - die Werte stehen darum von Hand. */
   .dark .statusschieber .wort { color: var(--schrift-blau); }
   .dark .statusschieber[aria-checked="true"] { background: var(--schrift-gruen); }
   .dark .statusschieber[aria-checked="true"] .wort { color: var(--schrift-gruen); }
+  .dark .statusschieber[data-ueberfaellig="true"] { background: var(--ton-amber-stark); }
+  .dark .statusschieber[data-ueberfaellig="true"] .wort { color: var(--schrift-amber); }
 
   /* Kleine Groesse fuer text-xs-Umgebungen: Muster-Listen, Werkzeugleisten. */
   .schieber-sm { width: 1.75rem; height: .9375rem; }   /* 28 x 15 */
