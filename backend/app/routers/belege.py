@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 from app.auth import get_current_user, require_admin
 from app.config import settings
 from app.database import get_db
-from app.models import Beleg, Buchung, Gebaeude, HaushaltsbuchEintrag
+from app.models import Beleg, Buchung, Gebaeude, HaushaltsbuchEintrag, ZaehlerAblesung
 
 try:  # OpenCV ist optional (wie bei der OCR-Pipeline) - ohne bleibt das Original erhalten
     import cv2
@@ -41,6 +41,14 @@ MAX_BYTES = 20 * 1024 * 1024  # 20 MB
 # 2000px lange Kante lässt also reichlich Reserve für Bildschirmansicht/Zoom.
 BILD_MAX_KANTE = 2000
 BILD_JPEG_QUALITAET = 85
+# Harte Obergrenze je Bild. 2000px bei Qualität 85 liegt meist schon darunter,
+# garantiert war es nie: ein kontrastreiches Foto (Kassenzettel, Zählwerk mit
+# Streiflicht) kommt auch so auf mehrere MB. Erst sinkt die Qualität, dann die
+# Kante - in dieser Reihenfolge, weil ein kleineres Bild mehr Information
+# verliert als ein etwas weicheres.
+BILD_MAX_BYTES = 1024 * 1024
+BILD_KANTEN = (BILD_MAX_KANTE, 1600, 1200, 900)
+BILD_QUALITAETEN = (BILD_JPEG_QUALITAET, 70, 55)
 
 
 def _ermittle_mime(content_type: str | None, dateiname: str | None) -> str | None:
@@ -52,24 +60,47 @@ def _ermittle_mime(content_type: str | None, dateiname: str | None) -> str | Non
     return ENDUNG_MIME.get(ext)
 
 
+def _skaliere(bild, kante: int):
+    """Verkleinert auf `kante` lange Kante; ein kleineres Bild bleibt, wie es ist."""
+    hoehe, breite = bild.shape[:2]
+    lange_kante = max(hoehe, breite)
+    if lange_kante <= kante:
+        return bild
+    skala = kante / lange_kante
+    return cv2.resize(
+        bild, (round(breite * skala), round(hoehe * skala)), interpolation=cv2.INTER_AREA,
+    )
+
+
 def _optimiere_bild(daten: bytes) -> bytes:
-    """Verkleinert Fotos auf max. BILD_MAX_KANTE und kodiert einheitlich als
-    JPEG (Qualität BILD_JPEG_QUALITAET). Ohne OpenCV oder bei nicht lesbaren
-    Bilddaten bleibt die Datei unveraendert (bestehendes Verhalten)."""
+    """Kodiert Fotos einheitlich als JPEG unter BILD_MAX_BYTES.
+
+    Der erste Versuch ist der bisherige - BILD_MAX_KANTE bei Qualität
+    BILD_JPEG_QUALITAET -, und für fast jedes Foto bleibt es dabei. Passt es
+    nicht, sinkt erst die Qualität, dann die Kante. Ohne OpenCV oder bei nicht
+    lesbaren Bilddaten bleibt die Datei unveraendert (bestehendes Verhalten);
+    reicht keine Stufe, wird die kleinste erreichte genommen - ein etwas zu
+    großes Bild ist besser als ein abgelehnter Upload.
+    """
     if cv2 is None:
         return daten
     bild = cv2.imdecode(np.frombuffer(daten, dtype=np.uint8), cv2.IMREAD_COLOR)
     if bild is None:
         return daten
-    hoehe, breite = bild.shape[:2]
-    lange_kante = max(hoehe, breite)
-    if lange_kante > BILD_MAX_KANTE:
-        skala = BILD_MAX_KANTE / lange_kante
-        bild = cv2.resize(
-            bild, (round(breite * skala), round(hoehe * skala)), interpolation=cv2.INTER_AREA,
-        )
-    ok, kodiert = cv2.imencode(".jpg", bild, [cv2.IMWRITE_JPEG_QUALITY, BILD_JPEG_QUALITAET])
-    return kodiert.tobytes() if ok else daten
+
+    kleinste: bytes | None = None
+    for kante in BILD_KANTEN:
+        verkleinert = _skaliere(bild, kante)
+        for qualitaet in BILD_QUALITAETEN:
+            ok, kodiert = cv2.imencode(".jpg", verkleinert, [cv2.IMWRITE_JPEG_QUALITY, qualitaet])
+            if not ok:
+                continue
+            roh = kodiert.tobytes()
+            if len(roh) <= BILD_MAX_BYTES:
+                return roh
+            if kleinste is None or len(roh) < len(kleinste):
+                kleinste = roh
+    return kleinste if kleinste is not None else daten
 
 
 # ── Gemeinsame Bausteine ────────────────────────────────────────────────────
@@ -269,3 +300,56 @@ def beleg_loeschen_gebaeude(
     _=Depends(require_admin),
 ):
     return _beleg_entfernen(db, _beleg_holen(db, beleg_id, Beleg.gebaeude_id, gebaeude_id))
+
+
+# ── Foto an einer Zählerablesung ────────────────────────────────────────────
+# Nicht require_admin, sondern get_current_user wie die Ablesungen selbst
+# (siehe routers/gebaeude.py): Ablesen ist Alltagsarbeit, Stammdaten nicht.
+# Zugeschnitten und gedreht wird im Browser - hier kommt nur noch der
+# Ausschnitt an.
+
+@router.post("/ablesung/{ablesung_id}")
+async def beleg_hochladen_ablesung(
+    ablesung_id: int,
+    datei: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    if db.get(ZaehlerAblesung, ablesung_id) is None:
+        raise HTTPException(404, "Ablesung nicht gefunden")
+    # Genau ein Foto je Ablesung: ein neues ersetzt das alte, samt Datei.
+    for alt in db.query(Beleg).filter(Beleg.zaehler_ablesung_id == ablesung_id).all():
+        _beleg_entfernen(db, alt)
+    return await _beleg_anlegen(
+        datei, f"ablesung-{ablesung_id}", db, user, zaehler_ablesung_id=ablesung_id
+    )
+
+
+@router.get("/ablesung/{ablesung_id}")
+def belege_liste_ablesung(
+    ablesung_id: int,
+    db: Session = Depends(get_db),
+    _=Depends(get_current_user),
+):
+    belege = db.query(Beleg).filter(Beleg.zaehler_ablesung_id == ablesung_id).order_by(Beleg.id).all()
+    return [{"id": b.id, "dateiname": b.dateiname} for b in belege]
+
+
+@router.get("/ablesung/{ablesung_id}/{beleg_id}/datei")
+def beleg_datei_ablesung(
+    ablesung_id: int,
+    beleg_id: int,
+    db: Session = Depends(get_db),
+    _=Depends(get_current_user),
+):
+    return _beleg_antwort(_beleg_holen(db, beleg_id, Beleg.zaehler_ablesung_id, ablesung_id))
+
+
+@router.delete("/ablesung/{ablesung_id}/{beleg_id}")
+def beleg_loeschen_ablesung(
+    ablesung_id: int,
+    beleg_id: int,
+    db: Session = Depends(get_db),
+    _=Depends(get_current_user),
+):
+    return _beleg_entfernen(db, _beleg_holen(db, beleg_id, Beleg.zaehler_ablesung_id, ablesung_id))

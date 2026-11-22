@@ -30,7 +30,7 @@ kategorien ─< planung                     (Jahresbudget, vgl. "Planung Gehalt"
 | `projekte` | Darlehen/Bauprojekt/Sonstiges (ersetzt fixe Sheets "Haus"/"Neubau") |
 | `buchungen` | Zentrale Bewegungstabelle, `status` geplant/gebucht, `quelle`. „Überfällig“ ist **kein** dritter Status, sondern abgeleitet: `status='geplant' AND datum < heute` |
 | `buchung_tags` | n:m Buchung↔Tag |
-| `belege` | Datei-Anhänge (Pfad im Dateisystem) |
+| `belege` | Datei-Anhänge (Pfad im Dateisystem). Genau **eine** von vier Zuordnungen ist gesetzt: `buchung_id`, `eintrag_id`, `gebaeude_id` oder `zaehler_ablesung_id` (Zählerstand-Foto) |
 | `buchung_positionen` | Aufteilung eines Belegs auf mehrere Kategorien |
 | `wiederkehrende_buchungen` | Vorlagen für Daueraufträge/Abos → erzeugen geplante Buchungen |
 | `darlehen_raten` | Tilgungsplan je Darlehensprojekt |
@@ -97,7 +97,16 @@ geschaeft ──1:1─ kassenzettel_muster.geschaeft_id (Phase 15, unique, SET N
 buchungen  ─< haushaltsbuch_eintrag.buchung_id   (1:1, NOT NULL, Deckung)
 haushaltsbuch_eintrag ─< haushaltsbuch_position  (Artikel, CASCADE)
 haushaltsbuch_eintrag ─< belege.eintrag_id       (Fotos, generalisiert)
+gebaeude ──< belege.gebaeude_id                  (Gebäudefotos)
+zaehler_ablesung ─< belege.zaehler_ablesung_id   (Zählerstand-Foto, eines je Ablesung)
 ```
+
+Zum Zählerstand-Foto: zugeschnitten und gedreht wird im Browser, hochgeladen
+nur der Ausschnitt. Ein neues Foto ersetzt das alte; `belege.py` deckelt jedes
+Bild auf unter 1 MB (`BILD_MAX_BYTES`). Die Dateien liegen in
+`belege/ablesung-<id>/`, und wer eine Ablesung, einen Zähler oder ein Gebäude
+löscht, räumt sie in `routers/gebaeude.py` mit ab — die Kaskade kennt nur die
+DB-Zeilen.
 
 ### `geschaeft` (Anf. 2 – Geschäfte als Auswahlliste)
 

@@ -538,6 +538,9 @@ class Beleg(Base):
     buchung_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("buchungen.id", ondelete="CASCADE"))
     eintrag_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("haushaltsbuch_eintrag.id", ondelete="CASCADE"))
     gebaeude_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("gebaeude.id", ondelete="CASCADE"))
+    zaehler_ablesung_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("zaehler_ablesung.id", ondelete="CASCADE")
+    )
     dateiname: Mapped[str] = mapped_column(String, nullable=False)
     dateipfad: Mapped[str] = mapped_column(String, nullable=False)
     hochgeladen_von: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("benutzer.id", ondelete="SET NULL"))
@@ -546,10 +549,14 @@ class Beleg(Base):
     buchung: Mapped[Optional["Buchung"]] = relationship("Buchung", back_populates="belege")
     eintrag: Mapped[Optional["HaushaltsbuchEintrag"]] = relationship("HaushaltsbuchEintrag", back_populates="belege")
     gebaeude: Mapped[Optional["Gebaeude"]] = relationship("Gebaeude", back_populates="fotos")
+    ablesung: Mapped[Optional["ZaehlerAblesung"]] = relationship(
+        "ZaehlerAblesung", back_populates="fotos"
+    )
 
     __table_args__ = (
         CheckConstraint(
-            "(buchung_id IS NOT NULL) + (eintrag_id IS NOT NULL) + (gebaeude_id IS NOT NULL) = 1",
+            "(buchung_id IS NOT NULL) + (eintrag_id IS NOT NULL) + (gebaeude_id IS NOT NULL)"
+            " + (zaehler_ablesung_id IS NOT NULL) = 1",
             name="ck_beleg_genau_eines",
         ),
     )
@@ -689,6 +696,11 @@ class ZaehlerAblesung(Base):
     notiz: Mapped[Optional[str]] = mapped_column(Text)
 
     zaehler: Mapped["Zaehler"] = relationship("Zaehler", back_populates="ablesungen")
+    # Genau ein Foto je Ablesung haelt die Oberflaeche ein; als Liste, weil es
+    # dieselbe belege-Tabelle ist wie bei Buchung, Eintrag und Gebaeude.
+    fotos: Mapped[List["Beleg"]] = relationship(
+        "Beleg", back_populates="ablesung", cascade="all, delete-orphan"
+    )
 
     __table_args__ = (
         UniqueConstraint("zaehler_id", "jahr", "art", name="uq_ablesung_zaehler_jahr_art"),

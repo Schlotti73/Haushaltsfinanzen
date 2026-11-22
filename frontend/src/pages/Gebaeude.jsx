@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Chart as ChartJS,
   ArcElement, BarElement, CategoryScale, LinearScale, Legend, Tooltip,
@@ -9,7 +9,7 @@ import { useAuth } from '../AuthContext'
 import KategorieSelect from '../components/KategorieSelect'
 import Modal from '../components/Modal'
 import { useConfirm } from '../components/useConfirm'
-import { PencilIcon } from '../components/icons'
+import { CameraIcon, DrehenIcon, PencilIcon } from '../components/icons'
 
 ChartJS.register(ArcElement, BarElement, CategoryScale, LinearScale, Legend, Tooltip)
 
@@ -613,6 +613,15 @@ function Ablesungen({ zaehler, istAdmin, onAenderung, confirm }) {
   const [neu, setNeu] = useState({ datum: new Date().toISOString().slice(0, 10), stand: '', art: 'jahr' })
   const [hinweis, setHinweis] = useState(null)
   const [bearbeitet, setBearbeitet] = useState(null)  // Ablesung, die gerade in der Zeile editiert wird
+  // Zählerstand-Foto: ein Durchlauf ist immer Datei wählen -> zuschneiden ->
+  // hochladen. `ziel` ist die Ablesung, an die es soll; null heißt "die, die
+  // mit Eintragen gleich entsteht", und dann wartet die Datei in `neuesFoto`.
+  const [rohdatei, setRohdatei] = useState(null)
+  const [fotoStand, setFotoStand] = useState(0)   // Cache-Brecher fuer die Vorschau
+  const [ziel, setZiel] = useState(null)
+  const [neuesFoto, setNeuesFoto] = useState(null)
+  const [fotoFehler, setFotoFehler] = useState(null)
+  const dateiRef = useRef(null)
 
   const laden = useCallback(() => {
     gebaeudeApi.ablesungen(zaehler.id).then((r) => setListe(r.data))
@@ -628,10 +637,48 @@ function Ablesungen({ zaehler, istAdmin, onAenderung, confirm }) {
       .catch(() => setHinweis(null))
   }, [neu.stand, neu.datum, neu.art, zaehler.id])
 
+  // Datei wählen: derselbe versteckte Eingabeknopf für alle Knöpfe, `ziel`
+  // merkt sich, wohin das Ergebnis gehört.
+  const dateiWaehlen = (ablesungId) => {
+    setFotoFehler(null)
+    setZiel(ablesungId ?? null)
+    dateiRef.current.value = ''
+    dateiRef.current.click()
+  }
+
+  const fotoHochladen = async (ablesungId, datei) => {
+    try {
+      await belegeApi.uploadAblesung(ablesungId, datei)
+      setFotoStand(Date.now())
+      laden()
+    } catch (err) {
+      setFotoFehler(err.response?.data?.detail ?? 'Das Foto konnte nicht gespeichert werden.')
+    }
+  }
+
+  const zuschnittFertig = (datei) => {
+    setRohdatei(null)
+    if (ziel == null) setNeuesFoto(datei)
+    else fotoHochladen(ziel, datei)
+  }
+
+  const fotoLoeschen = async (a) => {
+    if (!await confirm('Foto dieser Ablesung löschen?')) return
+    await belegeApi.deleteAblesung(a.id, a.foto_id)
+    laden()
+  }
+
+  // Erst die Ablesung, dann ihr Foto: das Foto braucht die ID, die der Server
+  // beim Anlegen vergibt. Scheitert der Upload, steht die Ablesung trotzdem -
+  // das Foto lässt sich an der Zeile nachtragen.
   const speichern = async () => {
-    await gebaeudeApi.ablesungCreate({
+    const r = await gebaeudeApi.ablesungCreate({
       zaehler_id: zaehler.id, datum: neu.datum, stand: Number(neu.stand), art: neu.art,
     })
+    if (neuesFoto) {
+      await fotoHochladen(r.data.id, neuesFoto)
+      setNeuesFoto(null)
+    }
     setNeu({ ...neu, stand: '' })
     laden()
     onAenderung()
@@ -672,8 +719,34 @@ function Ablesungen({ zaehler, istAdmin, onAenderung, confirm }) {
             <option value="zwischen">Zwischenablesung</option>
           </select>
         </div>
+        {neuesFoto ? (
+          <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded px-2 py-1">
+            <FotoVorschau datei={neuesFoto} className="w-12 h-8 object-cover rounded" />
+            <span className="text-xs text-blue-800 font-medium">Foto bereit</span>
+            <button className="text-xs text-blue-700 underline" onClick={() => dateiWaehlen(null)}>ändern</button>
+            <button className="text-blue-700 px-1" title="Foto verwerfen" onClick={() => setNeuesFoto(null)}>×</button>
+          </div>
+        ) : (
+          <button className="btn-secondary" onClick={() => dateiWaehlen(null)}>
+            <CameraIcon className="w-4 h-4" /> Foto
+          </button>
+        )}
         <button className="btn-primary" disabled={neu.stand === ''} onClick={speichern}>Eintragen</button>
       </div>
+      {/* Ein einziger Datei-Eingang für alle Foto-Knöpfe dieses Zählers.
+          capture="environment" öffnet am Handy direkt die Rückkamera. */}
+      <input
+        ref={dateiRef} type="file" accept="image/*" capture="environment" className="hidden"
+        onChange={(e) => { const d = e.target.files?.[0]; if (d) setRohdatei(d) }}
+      />
+      {fotoFehler && <div className="text-xs text-red-600">{fotoFehler}</div>}
+      {rohdatei && (
+        <FotoZuschnitt
+          datei={rohdatei}
+          onFertig={zuschnittFertig}
+          onAbbrechen={() => setRohdatei(null)}
+        />
+      )}
       {hinweis && <div className="text-xs text-amber-700 bg-amber-50 rounded px-2 py-1">{hinweis}</div>}
       {neu.art === 'zwischen' && (
         <div className="text-xs text-gray-500">
@@ -688,6 +761,7 @@ function Ablesungen({ zaehler, istAdmin, onAenderung, confirm }) {
             <th className="py-1 font-medium">Jahr</th>
             <th className="py-1 font-medium text-right">Stand</th>
             <th className="py-1 font-medium">Art</th>
+            <th className="py-1 font-medium">Foto</th>
             <th className="py-1 font-medium">Notiz</th>
             <th></th>
           </tr>
@@ -711,6 +785,7 @@ function Ablesungen({ zaehler, istAdmin, onAenderung, confirm }) {
                   <option value="zwischen">Zwischen</option>
                 </select>
               </td>
+              <td className="py-1 pr-2 text-gray-400 text-xs">–</td>
               <td className="py-1 pr-2">
                 <input className="input" value={bearbeitet.notiz ?? ''}
                        onChange={(e) => setBearbeitet({ ...bearbeitet, notiz: e.target.value })} />
@@ -728,10 +803,43 @@ function Ablesungen({ zaehler, istAdmin, onAenderung, confirm }) {
               <td className="py-1">
                 {a.art === 'jahr' ? <span className="badge badge-blue">Jahr</span> : <span className="badge badge-gray">Zwischen</span>}
               </td>
+              <td className="py-1 pr-2">
+                {a.foto_id ? (
+                  <div className="flex items-center gap-1">
+                    <a href={belegeApi.dateUrlAblesung(a.id, a.foto_id, fotoStand)} target="_blank" rel="noreferrer"
+                       title="Foto in voller Größe öffnen">
+                      <img
+                        src={belegeApi.dateUrlAblesung(a.id, a.foto_id, fotoStand)}
+                        alt={`Zählwerk am ${a.datum}`}
+                        className="w-14 h-9 object-cover rounded border border-gray-200"
+                      />
+                    </a>
+                    {istAdmin && (
+                      <button className="text-gray-400 hover:text-red-600 px-1" title="Foto löschen"
+                              onClick={() => fotoLoeschen(a)}>×</button>
+                    )}
+                  </div>
+                ) : (
+                  <button
+                    className="w-14 h-9 rounded border border-dashed border-gray-300 text-gray-400
+                               hover:text-gray-600 hover:border-gray-400 flex items-center justify-center"
+                    title="Foto nachtragen"
+                    aria-label={`Foto zur Ablesung vom ${a.datum} nachtragen`}
+                    onClick={() => dateiWaehlen(a.id)}
+                  ><CameraIcon className="w-4 h-4" /></button>
+                )}
+              </td>
               <td className="py-1 text-gray-500 text-xs">{a.notiz}</td>
               <td className="py-1 text-right whitespace-nowrap">
                 {istAdmin && (
                   <>
+                    {a.foto_id && (
+                      <button
+                        className="btn-secondary btn-icon-sm mr-1" title="Foto ersetzen"
+                        aria-label={`Foto der Ablesung vom ${a.datum} ersetzen`}
+                        onClick={() => dateiWaehlen(a.id)}
+                      ><CameraIcon className="w-4 h-4" /></button>
+                    )}
                     <button
                       className="btn-secondary btn-icon-sm mr-1" title="Bearbeiten"
                       onClick={() => setBearbeitet({ ...a, stand: String(a.stand) })}
@@ -750,10 +858,198 @@ function Ablesungen({ zaehler, istAdmin, onAenderung, confirm }) {
               </td>
             </tr>
           )))}
-          {liste.length === 0 && <tr><td colSpan={6} className="py-2 text-gray-400">Noch keine Ablesungen</td></tr>}
+          {liste.length === 0 && <tr><td colSpan={7} className="py-2 text-gray-400">Noch keine Ablesungen</td></tr>}
         </tbody>
       </table>
     </div>
+  )
+}
+
+// Vorschau einer Datei, die noch nicht hochgeladen ist (Blob-URL statt Endpunkt).
+function FotoVorschau({ datei, className }) {
+  const url = useMemo(() => URL.createObjectURL(datei), [datei])
+  useEffect(() => () => URL.revokeObjectURL(url), [url])
+  return <img src={url} alt="Gewähltes Zählwerk-Foto" className={className} />
+}
+
+// ── Foto zuschneiden und drehen, bevor es hochgeladen wird ──────────────────
+// Bewusst im Browser: so geht nur der Ausschnitt über die Leitung, und am Handy
+// ist das der Moment, in dem man das Bild noch vor Augen hat. Der 90°-Knopf ist
+// kein Komfort - OpenCV verwirft serverseitig die EXIF-Drehung, ein quer
+// aufgenommenes Zählwerk käme sonst quer in der Ablage an.
+const ANZEIGE_MAX = { breite: 560, hoehe: 320 }
+const STANDARD_AUSSCHNITT = { x: 0.08, y: 0.3, b: 0.84, h: 0.4 }
+
+function FotoZuschnitt({ datei, onFertig, onAbbrechen }) {
+  const [bild, setBild] = useState(null)
+  const [drehung, setDrehung] = useState(0)
+  const [aus, setAus] = useState(STANDARD_AUSSCHNITT)   // Anteile des gedrehten Bildes, 0..1
+  const [zieht, setZieht] = useState(null)
+  const [fehler, setFehler] = useState(null)
+  const flaecheRef = useRef(null)
+  const leinwandRef = useRef(null)
+
+  useEffect(() => {
+    const url = URL.createObjectURL(datei)
+    const img = new Image()
+    // React raeumt den Effekt im Entwicklungsmodus sofort wieder ab und laeuft
+    // ein zweites Mal. Ohne diese Sperre meldet das erste, mit der URL
+    // weggeraeumte Bild einen Fehler, obwohl das zweite laengst geladen ist.
+    let verworfen = false
+    img.onload = () => {
+      if (verworfen) return
+      setBild(img)
+      setFehler(null)
+    }
+    img.onerror = () => {
+      if (!verworfen) setFehler('Das Bild konnte nicht gelesen werden.')
+    }
+    img.src = url
+    return () => {
+      verworfen = true
+      URL.revokeObjectURL(url)
+    }
+  }, [datei])
+
+  // Maße nach der Drehung: bei 90° und 270° tauschen Breite und Höhe.
+  const gedreht = useMemo(() => {
+    if (!bild) return null
+    const quer = drehung % 180 !== 0
+    return {
+      b: quer ? bild.naturalHeight : bild.naturalWidth,
+      h: quer ? bild.naturalWidth : bild.naturalHeight,
+    }
+  }, [bild, drehung])
+
+  const anzeige = useMemo(() => {
+    if (!gedreht) return null
+    const skala = Math.min(ANZEIGE_MAX.breite / gedreht.b, ANZEIGE_MAX.hoehe / gedreht.h, 1)
+    return { b: Math.round(gedreht.b * skala), h: Math.round(gedreht.h * skala) }
+  }, [gedreht])
+
+  // Gezeichnet statt per CSS gedreht: nur so stimmen Zeigerkoordinaten und
+  // Ausschnitt ohne Umrechnung über die Drehmatrix überein.
+  useEffect(() => {
+    const c = leinwandRef.current
+    if (!c || !bild || !anzeige) return
+    c.width = anzeige.b
+    c.height = anzeige.h
+    const ctx = c.getContext('2d')
+    ctx.clearRect(0, 0, c.width, c.height)
+    ctx.save()
+    ctx.translate(c.width / 2, c.height / 2)
+    ctx.rotate((drehung * Math.PI) / 180)
+    const quer = drehung % 180 !== 0
+    const zb = quer ? c.height : c.width
+    const zh = quer ? c.width : c.height
+    ctx.drawImage(bild, -zb / 2, -zh / 2, zb, zh)
+    ctx.restore()
+  }, [bild, drehung, anzeige])
+
+  const anteil = (e) => {
+    const r = flaecheRef.current.getBoundingClientRect()
+    return {
+      x: Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)),
+      y: Math.min(1, Math.max(0, (e.clientY - r.top) / r.height)),
+    }
+  }
+
+  const ziehBeginn = (e) => {
+    e.preventDefault()
+    const p = anteil(e)
+    setZieht(p)
+    setAus({ x: p.x, y: p.y, b: 0, h: 0 })
+  }
+
+  const ziehLauf = (e) => {
+    if (!zieht) return
+    const p = anteil(e)
+    setAus({
+      x: Math.min(zieht.x, p.x), y: Math.min(zieht.y, p.y),
+      b: Math.abs(p.x - zieht.x), h: Math.abs(p.y - zieht.y),
+    })
+  }
+
+  // Ein Klick ohne Zug ist kein Ausschnitt - dann zurück auf den Vorschlag,
+  // statt ein leeres Rechteck stehen zu lassen.
+  const ziehEnde = () => {
+    setZieht(null)
+    setAus((a) => (a.b < 0.04 || a.h < 0.04 ? STANDARD_AUSSCHNITT : a))
+  }
+
+  const uebernehmen = (ganz = false) => {
+    if (!bild || !gedreht) return
+    const bereich = ganz ? { x: 0, y: 0, b: 1, h: 1 } : aus
+    const quelle = document.createElement('canvas')
+    quelle.width = gedreht.b
+    quelle.height = gedreht.h
+    const qctx = quelle.getContext('2d')
+    qctx.translate(quelle.width / 2, quelle.height / 2)
+    qctx.rotate((drehung * Math.PI) / 180)
+    qctx.drawImage(bild, -bild.naturalWidth / 2, -bild.naturalHeight / 2)
+
+    const sx = Math.round(bereich.x * gedreht.b)
+    const sy = Math.round(bereich.y * gedreht.h)
+    const sb = Math.max(1, Math.round(bereich.b * gedreht.b))
+    const sh = Math.max(1, Math.round(bereich.h * gedreht.h))
+    const ziel = document.createElement('canvas')
+    ziel.width = sb
+    ziel.height = sh
+    ziel.getContext('2d').drawImage(quelle, sx, sy, sb, sh, 0, 0, sb, sh)
+    ziel.toBlob((blob) => {
+      if (!blob) { setFehler('Der Ausschnitt konnte nicht erzeugt werden.'); return }
+      onFertig(new File([blob], 'zaehlerstand.jpg', { type: 'image/jpeg' }))
+    }, 'image/jpeg', 0.9)
+  }
+
+  return (
+    <Modal
+      onClose={onAbbrechen}
+      title="Foto zuschneiden"
+      maxWidth="max-w-2xl"
+      footer={
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <button className="btn-secondary" onClick={() => setDrehung((d) => (d + 90) % 360)}>
+            <DrehenIcon className="w-4 h-4" /> 90° drehen
+          </button>
+          <div className="flex gap-2">
+            <button className="btn-secondary" onClick={() => uebernehmen(true)}>Ganzes Foto</button>
+            <button className="btn-primary" disabled={!bild} onClick={() => uebernehmen(false)}>Übernehmen</button>
+          </div>
+        </div>
+      }
+    >
+      {fehler && <div className="text-sm text-red-600">{fehler}</div>}
+      <div className="bg-gray-900 rounded flex items-center justify-center p-3" style={{ minHeight: 200 }}>
+        {anzeige ? (
+          <div
+            ref={flaecheRef}
+            className="relative select-none"
+            style={{ width: anzeige.b, height: anzeige.h, touchAction: 'none', cursor: 'crosshair' }}
+            onPointerDown={ziehBeginn}
+            onPointerMove={ziehLauf}
+            onPointerUp={ziehEnde}
+            onPointerLeave={ziehEnde}
+          >
+            <canvas ref={leinwandRef} className="block rounded" />
+            <div
+              className="absolute border-2 border-white pointer-events-none"
+              style={{
+                left: `${aus.x * 100}%`, top: `${aus.y * 100}%`,
+                width: `${aus.b * 100}%`, height: `${aus.h * 100}%`,
+                boxShadow: '0 0 0 9999px rgba(17,24,39,.55)',
+              }}
+            />
+          </div>
+        ) : (
+          <span className="text-gray-400 text-sm">Lädt…</span>
+        )}
+      </div>
+      <div className="text-xs text-gray-500">
+        Rechteck um das Zählwerk ziehen. Es geht nur der Ausschnitt zum Server; liegt das
+        Zählwerk quer, vorher drehen.
+      </div>
+    </Modal>
   )
 }
 

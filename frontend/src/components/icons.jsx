@@ -17,6 +17,26 @@ export function EyeIcon({ className = 'w-5 h-5' }) {
   )
 }
 
+// Kamera – Foto aufnehmen oder ersetzen (Zählerstand, Beleg).
+export function CameraIcon({ className = 'w-5 h-5' }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h2.2l1.1-2h5.4l1.1 2H19a1 1 0 011 1v8a1 1 0 01-1 1H5a1 1 0 01-1-1V9a1 1 0 011-1z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+    </svg>
+  )
+}
+
+// Kreisbogen mit Pfeil – Bild um 90° drehen.
+export function DrehenIcon({ className = 'w-5 h-5' }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12a8 8 0 11-2.6-5.9" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 4v4.5h-4.5" />
+    </svg>
+  )
+}
+
 export function PencilIcon({ className = 'w-5 h-5' }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">

@@ -742,6 +742,9 @@ class AblesungOut(OrmBase):
     stand: float
     art: str
     notiz: Optional[str] = None
+    # Das Foto des Zählwerks, wenn eines hängt. Steht hier statt in einer
+    # eigenen Abfrage, damit die Tabelle nicht je Zeile einen Aufruf braucht.
+    foto_id: Optional[int] = None
 
 
 class VerbrauchJahr(BaseModel):

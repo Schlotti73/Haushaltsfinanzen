@@ -158,6 +158,22 @@ export const belegeApi = {
   },
   dateUrlGebaeude: (gebaeudeId, belegId) => `/api/belege/gebaeude/${gebaeudeId}/${belegId}/datei`,
   deleteGebaeude: (gebaeudeId, belegId) => api.delete(`/belege/gebaeude/${gebaeudeId}/${belegId}`),
+
+  // Zählerstand-Foto: genau eines je Ablesung, ein neues ersetzt das alte.
+  // `datei` ist der im Browser zugeschnittene Ausschnitt, kein Originalfoto.
+  uploadAblesung: (ablesungId, datei) => {
+    const form = new FormData()
+    form.append('datei', datei)
+    return api.post(`/belege/ablesung/${ablesungId}`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+  },
+  // `stand` ist nur ein Cache-Brecher: SQLite vergibt nach dem Ersetzen oft
+  // dieselbe Beleg-ID wieder, das neue Foto haette sonst dieselbe Adresse wie
+  // das alte und der Browser zeigte weiter das alte Bild.
+  dateUrlAblesung: (ablesungId, belegId, stand) =>
+    `/api/belege/ablesung/${ablesungId}/${belegId}/datei${stand ? `?v=${stand}` : ''}`,
+  deleteAblesung: (ablesungId, belegId) => api.delete(`/belege/ablesung/${ablesungId}/${belegId}`),
 }
 
 // ── Geschäfte (Phase 8) ───────────────────────────────────────────────────────

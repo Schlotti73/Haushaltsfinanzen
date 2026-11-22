@@ -18,7 +18,7 @@ from app.auth import get_current_user, require_admin
 from app.config import settings
 from app.database import get_db
 from app.models import (
-    Buchung, Gebaeude, GebaeudeKostenkategorie, Kategorie, Zaehler, ZaehlerAblesung,
+    Beleg, Buchung, Gebaeude, GebaeudeKostenkategorie, Kategorie, Zaehler, ZaehlerAblesung,
 )
 from app.schemas import (
     AblesungCreate, AblesungOut, AblesungUpdate, GebaeudeCreate,
@@ -28,6 +28,22 @@ from app.schemas import (
 )
 
 router = APIRouter(prefix="/gebaeude", tags=["gebaeude"])
+
+
+def _ablesungsfotos_entfernen(ablesung_ids) -> None:
+    """Räumt die Fotoordner gelöschter Ablesungen ab.
+
+    Die Beleg-Zeilen nimmt die Kaskade mit, die Dateien nicht - dasselbe
+    Gegenstück wie bei den Gebäudefotos in delete_gebaeude.
+    """
+    for ablesung_id in ablesung_ids:
+        shutil.rmtree(settings.belege_dir / f"ablesung-{ablesung_id}", ignore_errors=True)
+
+
+def _ablesung_ids_des_gebaeudes(db: Session, gebaeude_id: int) -> list[int]:
+    return [r[0] for r in db.query(ZaehlerAblesung.id)
+            .join(Zaehler, ZaehlerAblesung.zaehler_id == Zaehler.id)
+            .filter(Zaehler.gebaeude_id == gebaeude_id).all()]
 
 
 # ── Gebäude ─────────────────────────────────────────────────────────────────
@@ -85,10 +101,13 @@ def delete_gebaeude(gebaeude_id: int, db: Session = Depends(get_db), _=Depends(r
     g = db.get(Gebaeude, gebaeude_id)
     if not g:
         raise HTTPException(404, "Nicht gefunden")
+    # Vor dem Loeschen einsammeln: danach ist die Zuordnung Ablesung -> Zaehler weg.
+    ablesungen = _ablesung_ids_des_gebaeudes(db, gebaeude_id)
     db.delete(g)
     db.commit()
     # Die Beleg-Zeilen raeumt die Kaskade ab, die Fotodateien nicht.
     shutil.rmtree(settings.belege_dir / f"gebaeude-{gebaeude_id}", ignore_errors=True)
+    _ablesungsfotos_entfernen(ablesungen)
 
 
 # ── Zähler ──────────────────────────────────────────────────────────────────
@@ -166,8 +185,10 @@ def delete_zaehler(zaehler_id: int, db: Session = Depends(get_db), _=Depends(req
     z = db.get(Zaehler, zaehler_id)
     if not z:
         raise HTTPException(404, "Nicht gefunden")
+    ablesungen = [a.id for a in z.ablesungen]
     db.delete(z)
     db.commit()
+    _ablesungsfotos_entfernen(ablesungen)
 
 
 @router.post("/zaehler/{zaehler_id}/wechsel", response_model=ZaehlerOut, status_code=201)
@@ -222,10 +243,20 @@ def zaehlerwechsel(
 
 @router.get("/zaehler/{zaehler_id}/ablesungen", response_model=List[AblesungOut])
 def list_ablesungen(zaehler_id: int, db: Session = Depends(get_db), _=Depends(get_current_user)):
-    return (db.query(ZaehlerAblesung)
-            .filter(ZaehlerAblesung.zaehler_id == zaehler_id)
-            .order_by(ZaehlerAblesung.jahr.desc(), ZaehlerAblesung.datum.desc())
-            .all())
+    liste = (db.query(ZaehlerAblesung)
+             .filter(ZaehlerAblesung.zaehler_id == zaehler_id)
+             .order_by(ZaehlerAblesung.jahr.desc(), ZaehlerAblesung.datum.desc())
+             .all())
+    if not liste:
+        return []
+    # Die Foto-IDs in einer Abfrage, nicht je Tabellenzeile eine. max(id), weil
+    # je Ablesung nur eins vorgesehen ist - sollte doch ein zweites liegen, zeigt
+    # die Tabelle das jüngere.
+    fotos = dict(db.query(Beleg.zaehler_ablesung_id, func.max(Beleg.id))
+                 .filter(Beleg.zaehler_ablesung_id.in_([a.id for a in liste]))
+                 .group_by(Beleg.zaehler_ablesung_id).all())
+    return [AblesungOut.model_validate(a).model_copy(update={"foto_id": fotos.get(a.id)})
+            for a in liste]
 
 
 @router.post("/ablesungen", response_model=AblesungOut, status_code=201)
@@ -264,6 +295,7 @@ def delete_ablesung(ablesung_id: int, db: Session = Depends(get_db), _=Depends(g
         raise HTTPException(404, "Nicht gefunden")
     db.delete(a)
     db.commit()
+    _ablesungsfotos_entfernen([ablesung_id])
 
 
 @router.get("/ablesungen/pruefung")
