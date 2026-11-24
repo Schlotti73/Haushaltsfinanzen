@@ -17,6 +17,11 @@ function ErsteSchritte() {
         </li>
         <li><span className="font-medium">Geschäfte &amp; Empfänger</span> – verbessert den automatischen Abgleich zwischen Beleg und Kontobuchung.</li>
         <li>
+          <span className="font-medium">Verträge, Gebäude, Fahrzeuge</span> – eigene Bereiche für laufende
+          Verpflichtungen und für Kostenstellen. Sie führen keine zweite Buchhaltung: ihre Kosten kommen
+          aus den Buchungen, über die Kategorien, die dort hinterlegt sind.
+        </li>
+        <li>
           <span className="font-medium">Statistik, Liquidität, Projekte</span> – Auswertungen, sobald genug Buchungen
           vorhanden sind. Für die Liquiditätsvorschau zusätzlich <span className="font-medium">wiederkehrende
           Vorlagen</span> anlegen (siehe unten).
@@ -873,6 +878,218 @@ function Einstellungen() {
   )
 }
 
+function Vertraege() {
+  return (
+    <>
+      <p>
+        Hier stehen die laufenden Verpflichtungen – Versicherungen, Strom, Mobilfunk, Abos – mit
+        Laufzeit, Kündigungsfrist und stiller Verlängerung. Am Vertrag selbst steht{' '}
+        <span className="font-medium">kein Betrag</span>: was er kosten soll, hängt als
+        wiederkehrende Vorlage an ihm, was er gekostet hat, sind die Buchungen.
+      </p>
+      <p>
+        Der <span className="font-medium">Kündigungstermin</span> wird bei jedem Aufruf gerechnet,
+        nicht gespeichert. Ist er verstrichen und der Vertrag verlängert sich still, rückt er
+        automatisch auf die nächste Laufzeit weiter.
+      </p>
+      <HilfeFlow>
+        <HilfeKasten titel="Laufzeit bis" wert="31.12." />
+        <HilfeSchritt label="minus Frist" titel="Kündigungstermin" wert="30.09." ton="blau" />
+        <HilfeVerzweigung
+          label="verstrichen?"
+          optionen={[
+            { label: 'mit Verlängerung', schritte: [{ titel: 'nächste Laufzeit', wert: 'neuer Termin', ton: 'gelb' }] },
+            { label: 'ohne Verlängerung', schritte: [{ titel: 'läuft aus', wert: 'nichts zu kündigen', ton: 'grau' }] },
+          ]}
+        />
+      </HilfeFlow>
+      <p>
+        <span className="font-medium">Ohne Laufzeitende gibt es keinen Termin</span>, nur die Frist –
+        der Vertrag ist jederzeit kündbar und nichts kann verfallen. Das ist der Normalfall bei Abos.
+        Ein eingetragenes <span className="font-medium">Kündigungsdatum</span> schaltet den Termin
+        ab: gekündigt ist gekündigt, auch wenn das Ende noch in der Zukunft liegt.
+      </p>
+      <p>
+        Die Frist hat eine <span className="font-medium">Einheit</span> (Tage, Wochen, Monate).
+        „Drei Monate vor dem 31.03." ist der 31.12. und kein 90-Tage-Stichtag.
+      </p>
+
+      <div className="border-t pt-2.5 space-y-1.5">
+        <p>
+          <span className="font-medium text-gray-700">Raten: Soll und Ist.</span> Eine Rate ist eine{' '}
+          <span className="font-medium">wiederkehrende Vorlage</span>, die am Vertrag hängt – gern
+          mehrere, etwa monatlicher Abschlag und Jahresabrechnung. <span className="font-medium">Soll</span>{' '}
+          ist die Summe dieser Vorlagen aufs Jahr, <span className="font-medium">Ist</span> sind die
+          echten Buchungen der letzten zwölf Monate.
+        </p>
+        <HilfeFlow>
+          <HilfeKasten titel="Rate (Vorlage)" wert="Soll je Jahr" ton="blau" />
+          <HilfeSchritt titel="Buchungen" wert="Ist, 12 Monate" ton="gruen" />
+          <HilfeSchritt label="Abweichung" titel="Preis geändert" wert="Vorlage anpassen" ton="gelb" />
+        </HilfeFlow>
+        <p>
+          Weicht beides auseinander, steht die Vorlage meist auf einem alten Preis. Geändert wird der
+          Betrag <span className="font-medium">an der Vorlage</span> – rückwirkend wird dabei nichts
+          umgeschrieben.
+        </p>
+      </div>
+
+      <div className="border-t pt-2.5 space-y-1.5">
+        <p>
+          <span className="font-medium text-gray-700">Echte Zahlungen zuordnen.</span> Der Vertrag
+          sammelt die Buchungen, die zu ihm gehören – auf zwei verschieden starken Wegen:
+        </p>
+        <HilfeFlow>
+          <HilfeVerzweigung
+            optionen={[
+              { label: 'Mandatsreferenz', schritte: [{ titel: 'eindeutig', wert: 'ordnet still zu', ton: 'gruen' }] },
+              { label: 'Empfänger, Betrag', schritte: [{ titel: 'Indiz', wert: 'fragt jedes Mal', ton: 'gelb' }] },
+            ]}
+          />
+        </HilfeFlow>
+        <p>
+          Die <span className="font-medium">Mandatsreferenz</span> der Lastschrift ist pro Vertrag
+          eindeutig; ist sie einmal gemerkt, ordnet schon der Import jede weitere Abbuchung
+          selbstständig zu – auch rückwirkend für ältere Buchungen. Empfänger und Betrag sind nur
+          ein Indiz und werden deshalb jedes Mal nachgefragt, ohne Vorauswahl. Der{' '}
+          <span className="font-medium">Betrag</span> ist dabei Bestätigung, nie Bedingung: nach
+          einer Preiserhöhung passt er nicht mehr, der Vertrag bleibt trotzdem zuordenbar.
+        </p>
+        <p>
+          <span className="font-medium">PayPal und Klarna:</span> Dort läuft alles über ein einziges
+          Mandat. Die Referenz lässt sich an solchen Buchungen bewusst <span className="font-medium">nicht</span>{' '}
+          merken („Referenz nicht lernbar") – sonst bekäme jede künftige PayPal-Abbuchung denselben
+          Vertrag. Die einzelne Zahlung kannst du trotzdem zuordnen.
+        </p>
+      </div>
+
+      <p>
+        Ein Vertrag kann einem <span className="font-medium">Fahrzeug</span> zugeordnet werden –
+        Versicherung, Steuer, Leasing erscheinen dann dort bei den Kosten. Gepflegt wird er weiter
+        hier.
+      </p>
+      <p>
+        <span className="font-medium">Dokumente</span> (Police, Nachtrag, Preiserhöhung,
+        Kündigungsschreiben) hängen direkt am Vertrag, mehrere je Vertrag.
+      </p>
+      <p>
+        Rückt ein Kündigungstermin näher, erinnert das Dashboard daran; Vorlauf und Abschalten stehen
+        unter „Einstellungen". Beim <span className="font-medium">Löschen</span> gehen die Dokumente
+        mit, <span className="font-medium">Buchungen und Vorlagen bleiben</span> – sie verlieren nur
+        ihre Verbindung zum Vertrag.
+      </p>
+    </>
+  )
+}
+
+function Fahrzeuge() {
+  return (
+    <>
+      <p>
+        Ein Fahrzeug ist eine <span className="font-medium">Kostenstelle</span> wie ein Gebäude – nur
+        mit einem einzigen Zähler: dem Kilometerstand. Gespeichert wird immer der{' '}
+        <span className="font-medium">Stand</span>, nie die Fahrleistung; die ist die Differenz zweier
+        Stände. Ein nachträglich korrigierter Stand kann so nie zu einer widersprüchlichen
+        Fahrleistung führen.
+      </p>
+      <p>
+        Stände kommen aus <span className="font-medium">drei Quellen</span>, und alle drei zählen
+        gleich: ein Werkstattbesuch ist ebenso eine Ablesung wie der Zettel an der Zapfsäule.
+      </p>
+      <HilfeFlow>
+        <HilfeVerzweigung
+          optionen={[
+            { label: 'Tankung', schritte: [{ titel: 'km-Stand', wert: 'eine Reihe', ton: 'blau' }] },
+            { label: 'Ablesung', schritte: [{ titel: 'km-Stand', wert: 'z. B. 31.12.', ton: 'blau' }] },
+            { label: 'erledigter Termin', schritte: [{ titel: 'km-Stand', wert: 'Werkstatt', ton: 'blau' }] },
+          ]}
+        />
+      </HilfeFlow>
+      <p>
+        Für die Fahrleistung eines Jahres braucht es den letzten Stand des Vorjahres. Fehlt der{' '}
+        <span className="font-medium">Jahresstand</span> zum 31.12., wird das Jahr zu kurz gerechnet –
+        darum erinnert das Dashboard daran. Liegt der letzte Stand in den letzten 14 Dezembertagen,
+        fehlt nichts Nennenswertes und es kommt keine Erinnerung.
+      </p>
+
+      <div className="border-t pt-2.5 space-y-1.5">
+        <p>
+          <span className="font-medium text-gray-700">Tankungen sind freiwillig.</span> Der Schalter
+          steht in den Stammdaten; aus heißt kein Reiter, keine Mengen, kein Verbrauch. Fahrleistung
+          und Kosten je Kilometer entstehen trotzdem, solange der Stand einmal im Jahr eingetragen
+          wird.
+        </p>
+        <p>
+          <span className="font-medium">Verbrauch nur zwischen zwei Volltankungen.</span> Erst bei
+          vollem Tank ist bekannt, wie viel auf die gefahrenen Kilometer wirklich hineingegangen ist.
+          Eine Teilbetankung bekommt deshalb keinen eigenen Wert – ihre Menge fließt in die nächste
+          Volltankung ein.
+        </p>
+        <HilfeFlow>
+          <HilfeKasten titel="voll" wert="Tankung" ton="gruen" />
+          <HilfeSchritt label="Teiltankung" titel="Menge" wert="sammelt an" ton="grau" />
+          <HilfeSchritt label="voll" titel="Verbrauch" wert="l/100 km" ton="gruen" />
+        </HilfeFlow>
+        <p>
+          Beim Plug-in-Hybrid laufen <span className="font-medium">Liter und kWh getrennt</span>: zwei
+          Verbräuche auf dieselbe Strecke, so werden sie auch angezeigt. Die Strecke wird nicht
+          aufgeteilt, das ginge nicht ohne zu raten.
+        </p>
+      </div>
+
+      <p>
+        <span className="font-medium">Kosten</span> kommen aus den Buchungen der Kategorien, die am
+        Fahrzeug als Kostenart hinterlegt sind – Kraftstoff, Werkstatt, Steuer, Versicherung. Eine
+        Kategorie gehört immer nur <span className="font-medium">einer</span> Kostenstelle: ist
+        „Kraftstoff" schon an einem anderen Fahrzeug, einem Gebäude oder einem Zähler hinterlegt,
+        wird sie hier abgelehnt. Sonst zählte jede Tankstellenbuchung doppelt. Eine Erstattung bleibt
+        eine negative Kostenposition und mindert das Jahr.
+      </p>
+
+      <div className="border-t pt-2.5 space-y-1.5">
+        <p>
+          <span className="font-medium text-gray-700">Termine</span> – HU, Ölwechsel, Zahnriemen,
+          Reifenwechsel. Gespeichert wird nur das <span className="font-medium">Intervall</span>, in
+          Monaten und/oder Kilometern. Gelten beide, ist fällig, was zuerst erreicht wird.
+        </p>
+        <HilfeFlow>
+          <HilfeKasten titel="Intervall" wert="24 Monate / 30.000 km" />
+          <HilfeSchritt label="ab letzter Durchführung" titel="fällig" wert="Datum oder km" ton="blau" />
+          <HilfeSchritt label="km-Schnitt" titel="Prognose" wert="voraussichtl. Monat" ton="gelb" />
+        </HilfeFlow>
+        <p>
+          Das Monatsintervall zählt ab der letzten Durchführung – ohne eine gibt es{' '}
+          <span className="font-medium">kein Datum</span>. Das Kilometerintervall zählt ohne
+          Durchführung <span className="font-medium">ab 0</span>: so trägst du absolute Ziele ein,
+          „Zahnriemen alle 180.000 km" ist dann schlicht der Stand 180.000.
+        </p>
+        <p>
+          Die <span className="font-medium">Prognose</span> rechnet den Kilometerrest gegen den
+          Durchschnitt der letzten zwölf Monate. Aus weniger als zwei Ständen entsteht keine – das
+          ist richtiger als eine erfundene.
+        </p>
+        <p>
+          Erinnert wird mit <span className="font-medium">zwei Vorläufen</span>, Tagen und
+          Kilometern, weil ein Termin zwei Maßstäbe hat (Vorgabe 60 Tage / 2.000 km, unter
+          „Einstellungen").
+        </p>
+      </div>
+
+      <p>
+        <span className="font-medium">Verträge</span> – Versicherung, Steuer, Leasing – lassen sich
+        dem Fahrzeug zuordnen und erscheinen hier mit Kündigungstermin und Jahresrate; gepflegt
+        werden sie unter „Verträge". <span className="font-medium">Dokumente</span> wie
+        Fahrzeugschein, HU-Bericht oder Werkstattrechnung hängen direkt am Fahrzeug.
+      </p>
+      <p>
+        Beim <span className="font-medium">Löschen</span> gehen Stände, Tankungen, Termine und
+        Dokumente mit. <span className="font-medium">Buchungen und Verträge bleiben</span> – sie
+        gehören nicht dem Fahrzeug, es war nur ihre Kostenstelle.
+      </p>
+    </>
+  )
+}
+
 export const HILFE_ABSCHNITTE = [
   // Gruppe "bereiche": ein Abschnitt je Menuepunkt.
   { id: 'dashboard', gruppe: 'bereiche', titel: 'Dashboard', Inhalt: Dashboard },
@@ -880,11 +1097,13 @@ export const HILFE_ABSCHNITTE = [
   { id: 'haushaltsbuch', gruppe: 'bereiche', titel: 'Haushaltsbuch', Inhalt: Haushaltsbuch },
   { id: 'empfaenger-link', gruppe: 'bereiche', titel: 'Geschäfte & Empfänger-Verknüpfung', Inhalt: EmpfaengerLink },
   { id: 'statistik', gruppe: 'bereiche', titel: 'Statistik & Auswertungen', Inhalt: Statistik },
+  { id: 'vertraege', gruppe: 'bereiche', titel: 'Verträge – Frist, Raten & Zuordnung', Inhalt: Vertraege },
   { id: 'pdf-import', gruppe: 'bereiche', titel: 'Kontoauszug-Import & Muster', Inhalt: PdfImport },
   { id: 'konten-darlehen', gruppe: 'bereiche', titel: 'Konten – Darlehen', Inhalt: KontenDarlehen },
   { id: 'kategorien', gruppe: 'bereiche', titel: 'Kategorien', Inhalt: Kategorien },
   { id: 'projekte-plan-ist', gruppe: 'bereiche', titel: 'Projekte – Plan vs. Ist', Inhalt: ProjektePlanIst },
   { id: 'gebaeude', gruppe: 'bereiche', titel: 'Gebäude, Zähler & Nebenkosten', Inhalt: Gebaeude },
+  { id: 'fahrzeuge', gruppe: 'bereiche', titel: 'Fahrzeuge – Stände, Verbrauch & Termine', Inhalt: Fahrzeuge },
   { id: 'empfaenger', gruppe: 'bereiche', titel: 'Empfänger-Stammdaten', Inhalt: Empfaenger },
   { id: 'benutzer', gruppe: 'bereiche', titel: 'Benutzer & Anmeldung', Inhalt: Benutzer },
   { id: 'einstellungen', gruppe: 'bereiche', titel: 'Einstellungen', Inhalt: Einstellungen },
@@ -907,11 +1126,13 @@ export const HILFE_BEREICHE = [
   { label: 'Statistik', anker: 'statistik' },
   { label: 'Liquidität', anker: 'wiederkehrend-liquiditaet' },
   { label: 'Wiederkehrend', anker: 'wiederkehrend-liquiditaet' },
+  { label: 'Verträge', anker: 'vertraege' },
   { label: 'Kontoauszug-Import', anker: 'pdf-import' },
   { label: 'Konten', anker: 'konten-darlehen' },
   { label: 'Kategorien', anker: 'kategorien' },
   { label: 'Projekte', anker: 'projekte-plan-ist' },
   { label: 'Gebäude', anker: 'gebaeude' },
+  { label: 'Fahrzeuge', anker: 'fahrzeuge' },
   { label: 'Empfänger', anker: 'empfaenger' },
   { label: 'Benutzer', anker: 'benutzer' },
   { label: 'Einstellungen', anker: 'einstellungen' },
@@ -927,11 +1148,13 @@ export const HILFE_ROUTE_ANKER = {
   '/statistik': 'statistik',
   '/liquiditaet': 'wiederkehrend-liquiditaet',
   '/wiederkehrend': 'wiederkehrend-liquiditaet',
+  '/vertraege': 'vertraege',
   '/import': 'pdf-import',
   '/konten': 'konten-darlehen',
   '/kategorien': 'kategorien',
   '/projekte': 'projekte-plan-ist',
   '/gebaeude': 'gebaeude',
+  '/fahrzeuge': 'fahrzeuge',
   '/empfaenger': 'empfaenger',
   '/benutzer': 'benutzer',
   '/einstellungen': 'einstellungen',
