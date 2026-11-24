@@ -18,7 +18,8 @@ from app.auth import get_current_user, require_admin
 from app.config import settings
 from app.database import get_db
 from app.models import (
-    Beleg, Buchung, Gebaeude, GebaeudeKostenkategorie, Kategorie, Zaehler, ZaehlerAblesung,
+    Beleg, Buchung, Fahrzeug, FahrzeugKostenkategorie, Gebaeude, GebaeudeKostenkategorie,
+    Kategorie, Zaehler, ZaehlerAblesung,
 )
 from app.schemas import (
     AblesungCreate, AblesungOut, AblesungUpdate, GebaeudeCreate,
@@ -120,6 +121,25 @@ def list_zaehler(gebaeude_id: int, nur_aktiv: bool = False, db: Session = Depend
     return q.order_by(Zaehler.sortierung, Zaehler.name).all()
 
 
+def _nicht_am_fahrzeug(db: Session, kategorie_id: Optional[int]) -> None:
+    """Gegenprobe zum Fahrzeug-Modul: eine Kategorie gehört an eine Kostenstelle.
+
+    Steht „Kraftstoff" am Fahrzeug und zugleich beim Gebäude, zählte jede
+    Tankstellenbuchung zweimal - einmal in den Nebenkosten, einmal in den
+    Fahrzeugkosten. Dieselbe Prüfung macht `routers/fahrzeuge` in die andere
+    Richtung, damit die Regel von beiden Seiten gilt.
+    """
+    if not kategorie_id:
+        return
+    am_fahrzeug = (db.query(Fahrzeug)
+                   .join(FahrzeugKostenkategorie,
+                         FahrzeugKostenkategorie.fahrzeug_id == Fahrzeug.id)
+                   .filter(FahrzeugKostenkategorie.kategorie_id == kategorie_id).first())
+    if am_fahrzeug:
+        raise HTTPException(400, f'Diese Kategorie gehört schon zum Fahrzeug '
+                                 f'„{am_fahrzeug.name}“ und ist dort in den Kosten enthalten.')
+
+
 def _pruefe_zaehler(db: Session, z: Zaehler) -> None:
     """Prüft die Verknüpfungen eines Zählers, bevor er gespeichert wird.
 
@@ -135,6 +155,7 @@ def _pruefe_zaehler(db: Session, z: Zaehler) -> None:
         if doppelt:
             raise HTTPException(400, "Diese Kategorie ist beim Gebäude schon als Nebenkosten-"
                                      "Kategorie hinterlegt. Dort entfernen oder hier eine andere wählen.")
+        _nicht_am_fahrzeug(db, z.kategorie_id)
 
     if z.richtung != "einspeisung":
         z.gegenzaehler_id = None
@@ -597,6 +618,7 @@ def add_kostenkategorie(gebaeude_id: int, kategorie_id: int = Query(...),
     if am_zaehler:
         raise HTTPException(400, f'Diese Kategorie ist schon am Zähler „{am_zaehler.name}“ '
                                  f'hinterlegt und dort in den Kosten enthalten.')
+    _nicht_am_fahrzeug(db, kategorie_id)
     vorhanden = (db.query(GebaeudeKostenkategorie)
                  .filter(GebaeudeKostenkategorie.gebaeude_id == gebaeude_id,
                          GebaeudeKostenkategorie.kategorie_id == kategorie_id).first())

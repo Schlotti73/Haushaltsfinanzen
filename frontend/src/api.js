@@ -105,7 +105,9 @@ export const buchungenApi = {
 
 // ── Wiederkehrende Buchungen ──────────────────────────────────────────────────
 export const wiederkehrendApi = {
-  list: () => api.get('/wiederkehrend'),
+  // nurAktiv=false auch fuer die Raten eines Vertrags: eine stillgelegte Rate
+  // soll am Vertrag weiter sichtbar sein.
+  list: (nurAktiv = true) => api.get('/wiederkehrend', { params: { nur_aktiv: nurAktiv } }),
   create: (data) => api.post('/wiederkehrend', data),
   update: (id, data) => api.patch(`/wiederkehrend/${id}`, data),
   delete: (id) => api.delete(`/wiederkehrend/${id}`),
@@ -147,6 +149,28 @@ export const belegeApi = {
   },
   dateUrlEintrag: (eintragId, belegId) => `/api/belege/eintrag/${eintragId}/${belegId}/datei`,
   deleteEintrag: (eintragId, belegId) => api.delete(`/belege/eintrag/${eintragId}/${belegId}`),
+
+  listVertrag: (vertragId) => api.get(`/belege/vertrag/${vertragId}`),
+  uploadVertrag: (vertragId, datei) => {
+    const form = new FormData()
+    form.append('datei', datei)
+    return api.post(`/belege/vertrag/${vertragId}`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+  },
+  dateUrlVertrag: (vertragId, belegId) => `/api/belege/vertrag/${vertragId}/${belegId}/datei`,
+  deleteVertrag: (vertragId, belegId) => api.delete(`/belege/vertrag/${vertragId}/${belegId}`),
+
+  listFahrzeug: (fahrzeugId) => api.get(`/belege/fahrzeug/${fahrzeugId}`),
+  uploadFahrzeug: (fahrzeugId, datei) => {
+    const form = new FormData()
+    form.append('datei', datei)
+    return api.post(`/belege/fahrzeug/${fahrzeugId}`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+  },
+  dateUrlFahrzeug: (fahrzeugId, belegId) => `/api/belege/fahrzeug/${fahrzeugId}/${belegId}/datei`,
+  deleteFahrzeug: (fahrzeugId, belegId) => api.delete(`/belege/fahrzeug/${fahrzeugId}/${belegId}`),
 
   listGebaeude: (gebaeudeId) => api.get(`/belege/gebaeude/${gebaeudeId}`),
   uploadGebaeude: (gebaeudeId, datei) => {
@@ -385,6 +409,64 @@ export const updateApi = {
 // ── Gebäude & Verbrauchszahlen ──────────────────────────────────────────────
 export const erinnerungenApi = {
   list: () => api.get('/erinnerungen'),
+}
+
+// ── Verträge und laufende Verpflichtungen ───────────────────────────────────
+export const vertraegeApi = {
+  list: (nurLaufend = false) => api.get('/vertraege', { params: { nur_laufend: nurLaufend } }),
+  get: (id) => api.get(`/vertraege/${id}`),
+  create: (data) => api.post('/vertraege', data),
+  update: (id, data) => api.patch(`/vertraege/${id}`, data),
+  delete: (id) => api.delete(`/vertraege/${id}`),
+  zahlungen: (id, monate = 12) => api.get(`/vertraege/${id}/zahlungen`, { params: { monate } }),
+
+  // Arbeitsvorrat des Zuordnungs-Bildschirms: gebuchte Zahlungen ohne Vertrag,
+  // zu denen mindestens ein Vertrag passen koennte.
+  offeneZuordnungen: (kontoId) =>
+    api.get('/vertraege/offene-zuordnungen', { params: { konto_id: kontoId || undefined } }),
+  // referenz_merken lernt die Mandatsreferenz am Vertrag (nie bei PayPal & Co.),
+  // rueckwirkend nimmt aeltere Zahlungen mit derselben Referenz mit.
+  zuordnen: (buchungId, data) => api.post(`/vertraege/zuordnen/${buchungId}`, data),
+
+  // Raten: eigene Endpunkte, weil PATCH /wiederkehrend ein null nicht
+  // durchlaesst und das Loesen einer Verknuepfung kein Feldwechsel ist.
+  rateAnhaengen: (id, wkId) => api.post(`/vertraege/${id}/raten/${wkId}`),
+  rateLoesen: (id, wkId) => api.delete(`/vertraege/${id}/raten/${wkId}`),
+}
+
+export const fahrzeugeApi = {
+  list: (nurAktiv = true) => api.get('/fahrzeuge', { params: { nur_aktiv: nurAktiv } }),
+  get: (id) => api.get(`/fahrzeuge/${id}`),
+  create: (data) => api.post('/fahrzeuge', data),
+  update: (id, data) => api.patch(`/fahrzeuge/${id}`, data),
+  delete: (id) => api.delete(`/fahrzeuge/${id}`),
+
+  uebersicht: (id) => api.get(`/fahrzeuge/${id}/uebersicht`),
+
+  // Kilometerstaende ohne Tankung: der Stand zum 31.12. und Zwischenstaende.
+  staende: (id) => api.get(`/fahrzeuge/${id}/staende`),
+  standCreate: (id, data) => api.post(`/fahrzeuge/${id}/staende`, data),
+  standDelete: (standId) => api.delete(`/fahrzeuge/staende/${standId}`),
+
+  tankungen: (id) => api.get(`/fahrzeuge/${id}/tankungen`),
+  tankungCreate: (id, data) => api.post(`/fahrzeuge/${id}/tankungen`, data),
+  tankungUpdate: (tankungId, data) => api.patch(`/fahrzeuge/tankungen/${tankungId}`, data),
+  tankungDelete: (tankungId) => api.delete(`/fahrzeuge/tankungen/${tankungId}`),
+  // Tankstellen-Buchungen ohne erfasste Tankung, zum Nachtragen der Menge.
+  kraftstoffOffen: (id, monate = 12) =>
+    api.get(`/fahrzeuge/${id}/kraftstoff-offen`, { params: { monate } }),
+
+  termine: (id) => api.get(`/fahrzeuge/${id}/termine`),
+  terminCreate: (id, data) => api.post(`/fahrzeuge/${id}/termine`, data),
+  terminUpdate: (terminId, data) => api.patch(`/fahrzeuge/termine/${terminId}`, data),
+  terminDelete: (terminId) => api.delete(`/fahrzeuge/termine/${terminId}`),
+  erledigt: (terminId, data) => api.post(`/fahrzeuge/termine/${terminId}/erledigt`, data),
+  erledigungDelete: (erledigungId) => api.delete(`/fahrzeuge/erledigungen/${erledigungId}`),
+
+  kostenkategorien: (id) => api.get(`/fahrzeuge/${id}/kostenkategorien`),
+  kostenkategorieAdd: (id, kategorieId) =>
+    api.post(`/fahrzeuge/${id}/kostenkategorien`, null, { params: { kategorie_id: kategorieId } }),
+  kostenkategorieDelete: (zuordnungId) => api.delete(`/fahrzeuge/kostenkategorien/${zuordnungId}`),
 }
 
 export const gebaeudeApi = {

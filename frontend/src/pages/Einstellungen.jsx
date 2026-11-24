@@ -62,10 +62,16 @@ export default function Einstellungen() {
   const [abgleichSpeichern, setAbgleichSpeichern] = useState(false)
   const [dashboard, setDashboard] = useState({
     finanzsaldo: false, erinnerung_import_tage: 35, erinnerung_vorlauf_monate: 3,
+    erinnerung_kuendigung_tage: 60,
+    erinnerung_fahrzeug_tage: 60,
+    erinnerung_fahrzeug_km: 2000,
     // Alle Erinnerungen an: scheitert das Laden, soll die Seite nicht den
     // Eindruck erwecken, es sei etwas abgeschaltet.
     erinnerung_ablesungen_an: true, erinnerung_import_an: true,
     erinnerung_vorlauf_an: true, erinnerung_ueberfaellig_an: true,
+    erinnerung_kuendigung_an: true,
+    erinnerung_fahrzeug_an: true,
+    erinnerung_kmstand_an: true,
   })
   const [dashboardSpeichern, setDashboardSpeichern] = useState(false)
 
@@ -317,6 +323,53 @@ export default function Einstellungen() {
               an={dashboard.erinnerung_ueberfaellig_an}
               gesperrt={dashboardSpeichern}
               onSchalter={(v) => speichereDashboard({ erinnerung_ueberfaellig_an: v })}
+            />
+            <ErinnerungsZeile
+              label="Verträge, deren Kündigungsfrist ausläuft"
+              hinweis="Nur Verträge mit Laufzeitende und Frist im Modul Verträge."
+              an={dashboard.erinnerung_kuendigung_an}
+              gesperrt={dashboardSpeichern}
+              onSchalter={(v) => speichereDashboard({ erinnerung_kuendigung_an: v })}
+            >
+              <InlineZahl
+                vorsatz="noch" nachsatz="Tage"
+                wert={dashboard.erinnerung_kuendigung_tage}
+                min={1} max={365}
+                gesperrt={dashboardSpeichern || !dashboard.erinnerung_kuendigung_an}
+                blass={!dashboard.erinnerung_kuendigung_an}
+                onFertig={(v) => speichereDashboard({ erinnerung_kuendigung_tage: v })}
+              />
+            </ErinnerungsZeile>
+            <ErinnerungsZeile
+              label="Anstehende Fahrzeugtermine"
+              hinweis="HU, Inspektion und Wartung im Modul Fahrzeuge. Gemahnt wird, was zuerst erreicht wird."
+              an={dashboard.erinnerung_fahrzeug_an}
+              gesperrt={dashboardSpeichern}
+              onSchalter={(v) => speichereDashboard({ erinnerung_fahrzeug_an: v })}
+            >
+              <InlineZahl
+                vorsatz="noch" nachsatz="Tage"
+                wert={dashboard.erinnerung_fahrzeug_tage}
+                min={1} max={365}
+                gesperrt={dashboardSpeichern || !dashboard.erinnerung_fahrzeug_an}
+                blass={!dashboard.erinnerung_fahrzeug_an}
+                onFertig={(v) => speichereDashboard({ erinnerung_fahrzeug_tage: v })}
+              />
+              <InlineZahl
+                vorsatz="oder" nachsatz="km"
+                wert={dashboard.erinnerung_fahrzeug_km}
+                min={100} max={50000}
+                gesperrt={dashboardSpeichern || !dashboard.erinnerung_fahrzeug_an}
+                blass={!dashboard.erinnerung_fahrzeug_an}
+                onFertig={(v) => speichereDashboard({ erinnerung_fahrzeug_km: v })}
+              />
+            </ErinnerungsZeile>
+            <ErinnerungsZeile
+              label="Fehlende Kilometerstände zum Jahresende"
+              hinweis="Ohne den Stand zum 31.12. ist die Fahrleistung des Jahres zu kurz gerechnet."
+              an={dashboard.erinnerung_kmstand_an}
+              gesperrt={dashboardSpeichern}
+              onSchalter={(v) => speichereDashboard({ erinnerung_kmstand_an: v })}
             />
             <ErinnerungsZeile
               label="Fehlende Jahresablesungen"

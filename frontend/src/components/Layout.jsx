@@ -15,11 +15,13 @@ export const navItems = [
   { to: '/statistik', label: 'Statistik' },
   { to: '/liquiditaet', label: 'Liquidität' },
   { to: '/wiederkehrend', label: 'Wiederkehrend' },
+  { to: '/vertraege', label: 'Verträge' },
   { to: '/import', label: 'Kontoauszug-Import' },
   { to: '/konten', label: 'Konten' },
   { to: '/kategorien', label: 'Kategorien' },
   { to: '/projekte', label: 'Projekte' },
   { to: '/gebaeude', label: 'Gebäude' },
+  { to: '/fahrzeuge', label: 'Fahrzeuge' },
   { to: '/empfaenger', label: 'Empfänger' },
   { to: '/hilfe', label: 'Hilfe' },
 ]

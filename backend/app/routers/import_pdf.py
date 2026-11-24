@@ -37,6 +37,7 @@ from app.services.csv_import.profile import (
 )
 from app.services.einstellungen import betrag_toleranz, tage_toleranz
 from app.services.empfaenger_match import match as match_empfaenger
+from app.routers.vertraege import ordne_nach_referenz
 from app.services.hhb_match import finde_kandidaten
 from app.services.import_regel import RegelKatalog
 from app.services.pdf_import.dispatcher import ist_pdf, parse_datei
@@ -1049,6 +1050,9 @@ async def commit(
     # Treffer-Buchungen patchen: import_hash + Verwendungszweck/Datum vom Kontoauszug übertragen
     verknuepft = 0
     gebucht_gesetzt = 0
+    # Buchungen, die in diesem Durchlauf eine Mandatsreferenz bekommen haben
+    # oder schon hatten - sie kommen fuer die Vertragszuordnung in Frage.
+    angereichert: list[Buchung] = []
     # Wie oft das Bankdatum ein abweichendes Erfassungsdatum ersetzt hat. Beim
     # Anreichern des Altbestands ist das die stillste der Änderungen und
     # deshalb die, die genannt werden muss.
@@ -1105,6 +1109,7 @@ async def commit(
             if vorhandene.status != "gebucht":
                 vorhandene.status = "gebucht"
                 gebucht_gesetzt += 1
+            angereichert.append(vorhandene)
             verknuepft += 1
 
     # Hart-Duplikate optional mit den aktuellen PDF-Werten auffrischen
@@ -1149,6 +1154,7 @@ async def commit(
                 geaendert = True
             if geaendert:
                 aufgefrischt += 1
+            angereichert.append(bestehende)
 
     # Phase 8.5.1: für jede neu importierte Buchung nach offenen HHB-Einträgen
     # suchen, die dazu passen könnten (Betrag/Datum/Empfänger).
@@ -1176,6 +1182,13 @@ async def commit(
                 "buchung_betrag": buch.betrag,
                 "kandidaten": [HaushaltsbuchEintragOut.model_validate(k).model_dump(mode="json") for k in kandidaten],
             })
+
+    # Vertraege nach Mandatsreferenz zuordnen - erst hier, damit auch die per
+    # Treffer angereicherten Buchungen ihre gerade nachgetragene Referenz
+    # mitbringen. Nur der harte Weg; alles Weichere fragt der Vertragsdialog.
+    vertraege_zugeordnet = ordne_nach_referenz(
+        db, neue_buchungen + angereichert
+    )
 
     try:
         db.commit()
@@ -1216,6 +1229,7 @@ async def commit(
         "datum_korrigiert": datum_korrigiert,
         "duplikate": daten["duplikate"],
         "abgleich_vorschlaege": abgleich_vorschlaege,
+        "vertraege_zugeordnet": vertraege_zugeordnet,
     }
 
 

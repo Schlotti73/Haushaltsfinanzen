@@ -619,6 +619,9 @@ class WiederkehrendOut(OrmBase):
     start_datum: str
     end_datum: Optional[str]
     aktiv: bool
+    # Die Vorlage als Rate eines Vertrags. 1:n - Strom hat den monatlichen
+    # Abschlag und die Jahresabrechnung am selben Vertrag.
+    vertrag_id: Optional[int] = None
 
 
 class WiederkehrendCreate(BaseModel):
@@ -630,6 +633,7 @@ class WiederkehrendCreate(BaseModel):
     rhythmus: str
     start_datum: str
     end_datum: Optional[str] = None
+    vertrag_id: Optional[int] = None
 
 
 class WiederkehrendUpdate(BaseModel):
@@ -641,6 +645,133 @@ class WiederkehrendUpdate(BaseModel):
     start_datum: Optional[str] = None
     end_datum: Optional[str] = None
     aktiv: Optional[bool] = None
+    vertrag_id: Optional[int] = None
+
+
+# ── Verträge und laufende Verpflichtungen ───────────────────────────────────
+class VertragBase(BaseModel):
+    name: str
+    anbieter: Optional[str] = None
+    vertragsnummer: Optional[str] = None
+    kundennummer: Optional[str] = None
+    kategorie_id: Optional[int] = None
+    konto_id: Optional[int] = None
+    empfaenger_id: Optional[int] = None
+    # Kostenstelle: Versicherung, Steuer und Leasing gehoeren zu einem Fahrzeug.
+    fahrzeug_id: Optional[int] = None
+    mandatsreferenz: Optional[str] = None
+    beginn: Optional[str] = None
+    laufzeit_bis: Optional[str] = None
+    kuendigungsfrist: Optional[int] = None
+    kuendigungsfrist_einheit: str = "monate"
+    verlaengerung_monate: Optional[int] = None
+    notiz: Optional[str] = None
+    aktiv: bool = True
+
+    @field_validator("kuendigungsfrist_einheit")
+    @classmethod
+    def _einheit(cls, v: str) -> str:
+        if v not in ("tage", "wochen", "monate"):
+            raise ValueError("kuendigungsfrist_einheit muss tage, wochen oder monate sein")
+        return v
+
+    @field_validator("mandatsreferenz")
+    @classmethod
+    def _referenz(cls, v: Optional[str]) -> Optional[str]:
+        # Leerstring wuerde im UNIQUE-Index mit jedem anderen Leerstring kollidieren.
+        return (v or "").strip() or None
+
+
+class VertragCreate(VertragBase):
+    pass
+
+
+class VertragUpdate(BaseModel):
+    name: Optional[str] = None
+    anbieter: Optional[str] = None
+    vertragsnummer: Optional[str] = None
+    kundennummer: Optional[str] = None
+    kategorie_id: Optional[int] = None
+    konto_id: Optional[int] = None
+    empfaenger_id: Optional[int] = None
+    fahrzeug_id: Optional[int] = None
+    mandatsreferenz: Optional[str] = None
+    beginn: Optional[str] = None
+    laufzeit_bis: Optional[str] = None
+    kuendigungsfrist: Optional[int] = None
+    kuendigungsfrist_einheit: Optional[str] = None
+    verlaengerung_monate: Optional[int] = None
+    gekuendigt_am: Optional[str] = None
+    endet_am: Optional[str] = None
+    notiz: Optional[str] = None
+    aktiv: Optional[bool] = None
+
+
+class VertragOut(OrmBase, VertragBase):
+    id: int
+    gekuendigt_am: Optional[str] = None
+    endet_am: Optional[str] = None
+
+    # Alles ab hier ist gerechnet, nicht gespeichert - siehe models.Vertrag.
+    # `status` ist 'laufend' oder 'gekuendigt', `kuendigen_bis` der naechste
+    # Termin (None bei unbefristet oder schon gekuendigt).
+    status: str = "laufend"
+    kuendigen_bis: Optional[str] = None
+    tage_bis_kuendigung: Optional[int] = None
+    # Summe der Raten auf ein Jahr gerechnet, und was in den letzten zwoelf
+    # Monaten tatsaechlich gebucht wurde.
+    soll_jahr: float = 0.0
+    ist_12monate: float = 0.0
+    raten_anzahl: int = 0
+    dokumente_anzahl: int = 0
+    kategorie_name: Optional[str] = None
+    konto_name: Optional[str] = None
+    empfaenger_name: Optional[str] = None
+    fahrzeug_name: Optional[str] = None
+
+
+class VertragKandidat(BaseModel):
+    """Ein Vertrag, der zu einer noch nicht zugeordneten Buchung passen koennte."""
+
+    vertrag_id: int
+    name: str
+    anbieter: Optional[str] = None
+    # Warum er in Frage kommt: 'mandatsreferenz' (eindeutig) oder
+    # 'empfaenger' bzw. 'empfaenger_betrag' (Indiz, es wird gefragt).
+    grund: str
+    rate: Optional[float] = None
+    rhythmus: Optional[str] = None
+    gelernte_referenz: Optional[str] = None
+
+
+class VertragVorschlag(BaseModel):
+    """Die Zuordnungsfrage zu einer Buchung.
+
+    `eindeutig` heisst: genau ein Kandidat und er wurde ueber die
+    Mandatsreferenz gefunden - dann darf ohne Rueckfrage zugeordnet werden.
+    `referenz_lernbar` ist falsch, wenn der Glaeubiger ein
+    Zahlungsdienstleister ist (PayPal & Co.): dessen Referenz gehoert keinem
+    einzelnen Vertrag und darf nie gelernt werden.
+    """
+
+    buchung_id: int
+    datum: str
+    betrag: float
+    empfaenger: Optional[str] = None
+    verwendungszweck: Optional[str] = None
+    mandatsreferenz: Optional[str] = None
+    konto_name: Optional[str] = None
+    eindeutig: bool = False
+    referenz_lernbar: bool = True
+    referenz_sperrgrund: Optional[str] = None
+    kandidaten: List[VertragKandidat] = []
+    rueckwirkend_anzahl: int = 0
+
+
+class VertragZuordnen(BaseModel):
+    vertrag_id: Optional[int] = None
+    referenz_merken: bool = False
+    rueckwirkend: bool = False
 
 
 # ── Gebäude & Verbrauchszahlen ──────────────────────────────────────────────
@@ -818,3 +949,263 @@ class GebaeudeKostenkategorieOut(OrmBase):
     gebaeude_id: int
     kategorie_id: int
     sortierung: int
+
+
+# ── Fahrzeuge als Kostenstelle ──────────────────────────────────────────────
+class FahrzeugBase(BaseModel):
+    name: str
+    kennzeichen: Optional[str] = None
+    fahrgestellnummer: Optional[str] = None
+    hersteller_modell: Optional[str] = None
+    antrieb: str = "benzin"
+    erstzulassung: Optional[str] = None
+    konto_id: Optional[int] = None
+    # Aus: kein Reiter, keine Mengen, kein Verbrauch. Niemand muss an der
+    # Zapfsaeule den Kilometerstand abschreiben.
+    tankungen_erfassen: bool = False
+    notiz: Optional[str] = None
+    aktiv: bool = True
+
+    @field_validator("antrieb")
+    @classmethod
+    def _antrieb(cls, v: str) -> str:
+        if v not in ("benzin", "diesel", "elektro", "hybrid", "plugin"):
+            raise ValueError("antrieb muss benzin, diesel, elektro, hybrid oder plugin sein")
+        return v
+
+    @field_validator("fahrgestellnummer", "kennzeichen")
+    @classmethod
+    def _blank_zu_none(cls, v: Optional[str]) -> Optional[str]:
+        return (v or "").strip() or None
+
+
+class FahrzeugCreate(FahrzeugBase):
+    # Anfangsstand: der erste gespeicherte Stand. Freiwillig - ohne ihn
+    # beginnt die Historie mit der ersten Tankung oder Ablesung.
+    stand_km: Optional[int] = None
+    stand_datum: Optional[str] = None
+
+
+class FahrzeugUpdate(BaseModel):
+    name: Optional[str] = None
+    kennzeichen: Optional[str] = None
+    fahrgestellnummer: Optional[str] = None
+    hersteller_modell: Optional[str] = None
+    antrieb: Optional[str] = None
+    erstzulassung: Optional[str] = None
+    konto_id: Optional[int] = None
+    tankungen_erfassen: Optional[bool] = None
+    notiz: Optional[str] = None
+    aktiv: Optional[bool] = None
+
+
+class FahrzeugOut(OrmBase, FahrzeugBase):
+    id: int
+
+    # Alles ab hier ist gerechnet, nicht gespeichert - siehe models.Fahrzeug.
+    stand_km: Optional[int] = None
+    stand_datum: Optional[str] = None
+    fahrleistung_jahr: Optional[int] = None
+    kosten_jahr: float = 0.0
+    je_km: Optional[float] = None
+    verbrauch: Optional[float] = None
+    verbrauch_einheit: Optional[str] = None
+    naechster_termin: Optional[str] = None
+    naechster_termin_name: Optional[str] = None
+    konto_name: Optional[str] = None
+    dokumente_anzahl: int = 0
+
+
+class FahrzeugStandCreate(BaseModel):
+    datum: str
+    km: int
+    jahr: Optional[int] = None
+    art: str = "jahr"
+    notiz: Optional[str] = None
+
+    @field_validator("art")
+    @classmethod
+    def _art(cls, v: str) -> str:
+        if v not in ("jahr", "zwischen"):
+            raise ValueError("art muss jahr oder zwischen sein")
+        return v
+
+
+class FahrzeugStandOut(OrmBase):
+    id: int
+    fahrzeug_id: int
+    datum: str
+    jahr: int
+    km: int
+    art: str
+    notiz: Optional[str] = None
+
+
+class FahrzeugTankungCreate(BaseModel):
+    datum: str
+    km: int
+    menge: float
+    einheit: str = "liter"
+    voll: bool = True
+    betrag: Optional[float] = None
+    buchung_id: Optional[int] = None
+    notiz: Optional[str] = None
+
+    @field_validator("einheit")
+    @classmethod
+    def _einheit(cls, v: str) -> str:
+        if v not in ("liter", "kwh"):
+            raise ValueError("einheit muss liter oder kwh sein")
+        return v
+
+    # Der Betrag einer Tankung ist, was sie gekostet hat. Aus einer Buchung
+    # kommt er ohnehin als abs(), und ein Preis von -1,75 EUR je Liter ist
+    # keine Aussage - deshalb hier derselbe Stand, egal woher der Wert kommt.
+    @field_validator("betrag")
+    @classmethod
+    def _betrag(cls, v: Optional[float]) -> Optional[float]:
+        return abs(v) if v is not None else None
+
+
+class FahrzeugTankungUpdate(BaseModel):
+    datum: Optional[str] = None
+    km: Optional[int] = None
+    menge: Optional[float] = None
+    einheit: Optional[str] = None
+    voll: Optional[bool] = None
+    betrag: Optional[float] = None
+    buchung_id: Optional[int] = None
+    notiz: Optional[str] = None
+
+    @field_validator("betrag")
+    @classmethod
+    def _betrag(cls, v: Optional[float]) -> Optional[float]:
+        return abs(v) if v is not None else None
+
+
+class FahrzeugTankungOut(OrmBase):
+    id: int
+    fahrzeug_id: int
+    datum: str
+    km: int
+    menge: float
+    einheit: str
+    voll: bool
+    betrag: Optional[float] = None
+    buchung_id: Optional[int] = None
+    notiz: Optional[str] = None
+
+    # Gerechnet: gefahrene Kilometer als Differenz zum vorigen Stand und der
+    # Verbrauch, den es nur zwischen zwei Volltankungen gibt.
+    gefahren: Optional[int] = None
+    verbrauch: Optional[float] = None
+    preis_je_einheit: Optional[float] = None
+    buchung_empfaenger: Optional[str] = None
+
+
+class FahrzeugKostenkategorieOut(OrmBase):
+    id: int
+    fahrzeug_id: int
+    kategorie_id: int
+    sortierung: int
+    kategorie_name: Optional[str] = None
+
+
+class FahrzeugTerminCreate(BaseModel):
+    name: str
+    intervall_monate: Optional[int] = None
+    intervall_km: Optional[int] = None
+    notiz: Optional[str] = None
+    aktiv: bool = True
+    # Erstanlage: die letzte Durchfuehrung, aus der sich der erste Termin
+    # ergibt. Wird als Erledigung gespeichert, nicht als Spalte.
+    zuletzt_am: Optional[str] = None
+    zuletzt_km: Optional[int] = None
+
+
+class FahrzeugTerminUpdate(BaseModel):
+    name: Optional[str] = None
+    intervall_monate: Optional[int] = None
+    intervall_km: Optional[int] = None
+    notiz: Optional[str] = None
+    aktiv: Optional[bool] = None
+
+
+class FahrzeugErledigungCreate(BaseModel):
+    datum: str
+    km: Optional[int] = None
+    buchung_id: Optional[int] = None
+    notiz: Optional[str] = None
+
+
+class FahrzeugErledigungOut(OrmBase):
+    id: int
+    termin_id: int
+    datum: str
+    km: Optional[int] = None
+    buchung_id: Optional[int] = None
+    notiz: Optional[str] = None
+    termin_name: Optional[str] = None
+    kosten: Optional[float] = None
+
+
+class FahrzeugTerminOut(OrmBase):
+    id: int
+    fahrzeug_id: int
+    name: str
+    intervall_monate: Optional[int] = None
+    intervall_km: Optional[int] = None
+    notiz: Optional[str] = None
+    aktiv: bool
+
+    # Gerechnet: aus Intervall, letzter Durchfuehrung und Fahrleistung.
+    zuletzt_am: Optional[str] = None
+    zuletzt_km: Optional[int] = None
+    faellig_am: Optional[str] = None
+    faellig_km: Optional[int] = None
+    rest_tage: Optional[int] = None
+    rest_km: Optional[int] = None
+    # Voraussichtlicher Monat, wenn nur ein Kilometer-Intervall gilt (YYYY-MM).
+    prognose_monat: Optional[str] = None
+    ueberfaellig: bool = False
+    erledigungen: List[FahrzeugErledigungOut] = []
+
+
+class FahrzeugJahresreihe(BaseModel):
+    """Eine Zeile der Jahrestabelle: eine Kostenart ueber alle Jahre."""
+
+    name: str
+    kategorie_id: Optional[int] = None
+    betraege: List[float] = []
+
+
+class FahrzeugVertragZeile(BaseModel):
+    vertrag_id: int
+    name: str
+    anbieter: Optional[str] = None
+    soll_jahr: float = 0.0
+    kuendigen_bis: Optional[str] = None
+    status: str = "laufend"
+
+
+class FahrzeugUebersicht(BaseModel):
+    """Die Jahrestabelle des Fahrzeugs: Kosten, Fahrleistung, Kosten je Kilometer.
+
+    Alles gerechnet. Die Jahre sind die Vereinigung aus Kosten- und
+    Ablesejahren: eine Reparaturrechnung im Jahr ohne Stand ist eine echte
+    Kostenposition und darf nicht daran scheitern.
+    """
+
+    jahre: List[int] = []
+    kostenarten: List[FahrzeugJahresreihe] = []
+    summe: List[float] = []
+    fahrleistung: List[Optional[int]] = []
+    je_km: List[Optional[float]] = []
+    verbrauch: List[Optional[float]] = []
+    verbrauch_einheit: Optional[str] = None
+    vertraege: List[FahrzeugVertragZeile] = []
+    # Abgleich Kraftstoff: Buchungen der Kategorien gegen die erfassten
+    # Tankungen des laufenden Jahres.
+    kraftstoff_buchungen: Optional[float] = None
+    kraftstoff_tankungen: Optional[float] = None
+    kraftstoff_offen_anzahl: int = 0

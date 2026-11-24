@@ -164,8 +164,90 @@ class WiederkehrendeBuchung(Base):
     start_datum: Mapped[str] = mapped_column(String, nullable=False)
     end_datum: Mapped[Optional[str]] = mapped_column(String)
     aktiv: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # Ein Vertrag darf mehrere Vorlagen halten (Strom: monatlicher Abschlag und
+    # Jahresabrechnung). Ohne FK in migrierten DBs - SQLite kann eine Spalte nur
+    # ohne REFERENCES nachrüsten; der Router setzt beim Löschen selbst auf NULL.
+    vertrag_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("vertraege.id", ondelete="SET NULL"))
+
+    vertrag: Mapped[Optional["Vertrag"]] = relationship("Vertrag", back_populates="raten")
 
     __table_args__ = (CheckConstraint("rhythmus IN ('monatlich', 'zweimonatlich', 'quartal', 'jaehrlich')", name="ck_wiederk_rhythmus"),)
+
+
+class Vertrag(Base):
+    """Ein Vertrag oder eine laufende Verpflichtung.
+
+    Stammdaten, Laufzeit und Frist stehen hier; das Geld bleibt bei den
+    Buchungen. Was der Vertrag kosten *soll*, hängt als wiederkehrende Buchung
+    an ihm (`raten`, 1:n und auch leer erlaubt); was er gekostet *hat*, sind
+    die Buchungen mit dieser `vertrag_id`.
+
+    Der Kündigungstermin ist bewusst keine Spalte, sondern wird in
+    `routers/vertraege.py` aus `laufzeit_bis`, `kuendigungsfrist` und
+    `verlaengerung_monate` gerechnet. Gespeichert wäre er nach jeder stillen
+    Verlängerung falsch, ohne dass es auffällt — dieselbe Entscheidung wie beim
+    Status "überfällig" einer Buchung und bei den Erinnerungen.
+
+    Zwei Wege führen von einer echten Buchung hierher, und sie sind
+    unterschiedlich stark:
+
+      `mandatsreferenz` – pro Vertrag stabil und eindeutig (UNIQUE), nur bei
+                          Lastschriften vorhanden. Trifft sie, wird ohne
+                          Rückfrage zugeordnet.
+      `empfaenger_id`   – das weichere Merkmal für Zahlungsdienstleister. Über
+                          PayPal trägt die Mandatsreferenz *PayPal*, nicht den
+                          Vertrag; sie darf dort nie gelernt werden. Den
+                          Empfänger setzt Stufe `haendler` der `import_regel`
+                          schon aus dem Verwendungszweck. Das ist ein Indiz,
+                          also wird jedes Mal gefragt.
+    """
+
+    __tablename__ = "vertraege"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    anbieter: Mapped[Optional[str]] = mapped_column(String)
+    vertragsnummer: Mapped[Optional[str]] = mapped_column(String)
+    kundennummer: Mapped[Optional[str]] = mapped_column(String)
+    kategorie_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("kategorien.id", ondelete="SET NULL"))
+    konto_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("konten.id", ondelete="SET NULL"))
+    empfaenger_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("empfaenger.id", ondelete="SET NULL"))
+    # Kostenstelle: Versicherung, Steuer und Leasing sind Verträge und bleiben
+    # es — das Fahrzeug sagt nur, zu wem sie gehören.
+    fahrzeug_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("fahrzeuge.id", ondelete="SET NULL"))
+    mandatsreferenz: Mapped[Optional[str]] = mapped_column(String)
+    beginn: Mapped[Optional[str]] = mapped_column(String)
+    # Leer heißt unbefristet und damit zum Ende der Frist kündbar.
+    laufzeit_bis: Mapped[Optional[str]] = mapped_column(String)
+    kuendigungsfrist: Mapped[Optional[int]] = mapped_column(Integer)
+    kuendigungsfrist_einheit: Mapped[str] = mapped_column(String, nullable=False, default="monate")
+    # Leer oder 0: der Vertrag endet mit der Laufzeit, verlängert sich also nicht.
+    verlaengerung_monate: Mapped[Optional[int]] = mapped_column(Integer)
+    # Gesetzt = gekündigt. `endet_am` ist der letzte Tag, an dem er noch läuft.
+    gekuendigt_am: Mapped[Optional[str]] = mapped_column(String)
+    endet_am: Mapped[Optional[str]] = mapped_column(String)
+    notiz: Mapped[Optional[str]] = mapped_column(Text)
+    aktiv: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    erstellt_von: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("benutzer.id", ondelete="SET NULL"))
+    erstellt_am: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+
+    kategorie: Mapped[Optional["Kategorie"]] = relationship("Kategorie")
+    konto: Mapped[Optional["Konto"]] = relationship("Konto")
+    empfaenger_obj: Mapped[Optional["Empfaenger"]] = relationship("Empfaenger")
+    fahrzeug: Mapped[Optional["Fahrzeug"]] = relationship("Fahrzeug", back_populates="vertraege")
+    raten: Mapped[List["WiederkehrendeBuchung"]] = relationship(
+        "WiederkehrendeBuchung", back_populates="vertrag"
+    )
+    dokumente: Mapped[List["Beleg"]] = relationship(
+        "Beleg", back_populates="vertrag", cascade="all, delete-orphan"
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "kuendigungsfrist_einheit IN ('tage', 'wochen', 'monate')",
+            name="ck_vertrag_fristeinheit",
+        ),
+    )
 
 
 class Empfaenger(Base):
@@ -456,6 +538,10 @@ class Buchung(Base):
     # per Treffer verknüpft wurde). SET NULL: das Archiv zu löschen darf die
     # Buchung selbst nicht antasten.
     kontoauszug_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("kontoauszug.id", ondelete="SET NULL"))
+    # Vertrag, dessen Kosten diese Buchung ist. Gesetzt vom Generator (die Rate
+    # kennt ihren Vertrag), beim Import über die Mandatsreferenz oder von Hand.
+    # SET NULL: einen Vertrag zu löschen darf die Zahlungen nicht mitnehmen.
+    vertrag_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("vertraege.id", ondelete="SET NULL"))
 
     konto: Mapped[Optional["Konto"]] = relationship("Konto", back_populates="buchungen")
     kategorie: Mapped[Optional["Kategorie"]] = relationship("Kategorie")
@@ -468,6 +554,7 @@ class Buchung(Base):
         "HaushaltsbuchEintrag", back_populates="buchung", uselist=False
     )
     kontoauszug: Mapped[Optional["Kontoauszug"]] = relationship("Kontoauszug", back_populates="buchungen")
+    vertrag: Mapped[Optional["Vertrag"]] = relationship("Vertrag", foreign_keys=[vertrag_id])
 
     @property
     def hh_abgleich_status(self) -> Optional[str]:
@@ -541,6 +628,8 @@ class Beleg(Base):
     zaehler_ablesung_id: Mapped[Optional[int]] = mapped_column(
         Integer, ForeignKey("zaehler_ablesung.id", ondelete="CASCADE")
     )
+    vertrag_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("vertraege.id", ondelete="CASCADE"))
+    fahrzeug_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("fahrzeuge.id", ondelete="CASCADE"))
     dateiname: Mapped[str] = mapped_column(String, nullable=False)
     dateipfad: Mapped[str] = mapped_column(String, nullable=False)
     hochgeladen_von: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("benutzer.id", ondelete="SET NULL"))
@@ -552,11 +641,14 @@ class Beleg(Base):
     ablesung: Mapped[Optional["ZaehlerAblesung"]] = relationship(
         "ZaehlerAblesung", back_populates="fotos"
     )
+    vertrag: Mapped[Optional["Vertrag"]] = relationship("Vertrag", back_populates="dokumente")
+    fahrzeug: Mapped[Optional["Fahrzeug"]] = relationship("Fahrzeug", back_populates="dokumente")
 
     __table_args__ = (
         CheckConstraint(
             "(buchung_id IS NOT NULL) + (eintrag_id IS NOT NULL) + (gebaeude_id IS NOT NULL)"
-            " + (zaehler_ablesung_id IS NOT NULL) = 1",
+            " + (zaehler_ablesung_id IS NOT NULL) + (vertrag_id IS NOT NULL)"
+            " + (fahrzeug_id IS NOT NULL) = 1",
             name="ck_beleg_genau_eines",
         ),
     )
@@ -726,3 +818,222 @@ class GebaeudeKostenkategorie(Base):
     kategorie: Mapped["Kategorie"] = relationship("Kategorie")
 
     __table_args__ = (UniqueConstraint("gebaeude_id", "kategorie_id", name="uq_gebaeude_kategorie"),)
+
+
+class Fahrzeug(Base):
+    """Ein Fahrzeug als Kostenstelle.
+
+    Derselbe Aufbau wie beim Gebäude, nur ohne Zähler-Tabelle: ein Fahrzeug
+    hat genau einen Zähler. Gespeichert wird darum der **Kilometerstand**, nie
+    die Fahrleistung — die ist immer die Differenz zweier Stände.
+
+    Stände kommen aus zwei Quellen: `tankungen` (an der Zapfsäule) und
+    `staende` (zum 31.12. und zwischendurch). Beides zusammen ergibt die
+    Fahrleistung; Verbrauch gibt es nur, wo Mengen erfasst sind.
+
+    `tankungen_erfassen` ist der Schalter dafür. Niemand muss an der Säule
+    etwas abschreiben: steht er aus, gibt es keine Mengen, keinen Verbrauch
+    und keinen Reiter — Kraftstoff ist dann nur eine Kostenart aus den
+    Buchungen. Fahrleistung und Kosten je Kilometer bleiben trotzdem, solange
+    der Stand einmal im Jahr eingetragen wird.
+
+    Die Kosten selbst bleiben bei den Buchungen; `kostenkategorien` sagt nur,
+    welche Kategorien zu diesem Fahrzeug gehören.
+    """
+
+    __tablename__ = "fahrzeuge"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    kennzeichen: Mapped[Optional[str]] = mapped_column(String)
+    # 17 Stellen aus dem Fahrzeugschein; Versicherung und Werkstatt fragen danach.
+    fahrgestellnummer: Mapped[Optional[str]] = mapped_column(String)
+    hersteller_modell: Mapped[Optional[str]] = mapped_column(String)
+    # Bestimmt die Einheit der Tankungen: Liter oder kWh, beim Plug-in beides.
+    antrieb: Mapped[str] = mapped_column(String, nullable=False, default="benzin")
+    erstzulassung: Mapped[Optional[str]] = mapped_column(String)
+    konto_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("konten.id", ondelete="SET NULL"))
+    tankungen_erfassen: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    notiz: Mapped[Optional[str]] = mapped_column(Text)
+    aktiv: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
+    konto: Mapped[Optional["Konto"]] = relationship("Konto")
+    staende: Mapped[List["FahrzeugStand"]] = relationship(
+        "FahrzeugStand", back_populates="fahrzeug", cascade="all, delete-orphan"
+    )
+    tankungen: Mapped[List["FahrzeugTankung"]] = relationship(
+        "FahrzeugTankung", back_populates="fahrzeug", cascade="all, delete-orphan"
+    )
+    kostenkategorien: Mapped[List["FahrzeugKostenkategorie"]] = relationship(
+        "FahrzeugKostenkategorie", back_populates="fahrzeug", cascade="all, delete-orphan"
+    )
+    termine: Mapped[List["FahrzeugTermin"]] = relationship(
+        "FahrzeugTermin", back_populates="fahrzeug", cascade="all, delete-orphan"
+    )
+    dokumente: Mapped[List["Beleg"]] = relationship(
+        "Beleg", back_populates="fahrzeug", cascade="all, delete-orphan"
+    )
+    # Versicherung, Steuer, Leasing: Verträge bleiben Verträge und werden dort
+    # gepflegt, das Fahrzeug ist nur ihre Kostenstelle. Darum keine Kaskade.
+    vertraege: Mapped[List["Vertrag"]] = relationship("Vertrag", back_populates="fahrzeug")
+
+    __table_args__ = (
+        CheckConstraint(
+            "antrieb IN ('benzin', 'diesel', 'elektro', 'hybrid', 'plugin')",
+            name="ck_fahrzeug_antrieb",
+        ),
+    )
+
+
+class FahrzeugStand(Base):
+    """Ein abgelesener Kilometerstand ohne Tankung.
+
+    `art='jahr'` ist der Stand zum 31.12. und geht in die Jahresfahrleistung
+    ein; er ist je Fahrzeug und Jahr eindeutig (partieller Index in der
+    Migration). `art='zwischen'` ist reine Information — Werkstattbesuch,
+    Übernahme, Verkauf — und darf im Jahr mehrfach vorkommen.
+    """
+
+    __tablename__ = "fahrzeug_stand"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    fahrzeug_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("fahrzeuge.id", ondelete="CASCADE"), nullable=False
+    )
+    datum: Mapped[str] = mapped_column(String, nullable=False)
+    # Abrechnungsjahr, aus dem Datum vorbelegt, aber änderbar (Ablesung am 02.01.)
+    jahr: Mapped[int] = mapped_column(Integer, nullable=False)
+    km: Mapped[int] = mapped_column(Integer, nullable=False)
+    art: Mapped[str] = mapped_column(String, nullable=False, default="jahr")
+    notiz: Mapped[Optional[str]] = mapped_column(Text)
+
+    fahrzeug: Mapped["Fahrzeug"] = relationship("Fahrzeug", back_populates="staende")
+
+    __table_args__ = (
+        CheckConstraint("art IN ('jahr', 'zwischen')", name="ck_fahrzeug_stand_art"),
+    )
+
+
+class FahrzeugTankung(Base):
+    """Eine Tankung oder Ladung: Kilometerstand und Menge.
+
+    Der Verbrauch entsteht nur zwischen zwei **Volltankungen** — nur dann ist
+    bekannt, wie viel auf die gefahrenen Kilometer wirklich hineingegangen
+    ist. Eine Teilbetankung (`voll=False`) zählt mit, bekommt aber keinen
+    eigenen Wert; ihre Menge fließt in die nächste Volltankung ein.
+
+    `betrag` ist freiwillig und `buchung_id` der Normalfall: das Geld steht
+    schon im Kontoauszug und wird hier verknüpft, nicht abgeschrieben. Eine
+    zweite Buchführung gibt es nicht.
+    """
+
+    __tablename__ = "fahrzeug_tankung"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    fahrzeug_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("fahrzeuge.id", ondelete="CASCADE"), nullable=False
+    )
+    datum: Mapped[str] = mapped_column(String, nullable=False)
+    km: Mapped[int] = mapped_column(Integer, nullable=False)
+    menge: Mapped[float] = mapped_column(Float, nullable=False)
+    einheit: Mapped[str] = mapped_column(String, nullable=False, default="liter")
+    voll: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    betrag: Mapped[Optional[float]] = mapped_column(Float)
+    buchung_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("buchungen.id", ondelete="SET NULL")
+    )
+    notiz: Mapped[Optional[str]] = mapped_column(Text)
+
+    fahrzeug: Mapped["Fahrzeug"] = relationship("Fahrzeug", back_populates="tankungen")
+    buchung: Mapped[Optional["Buchung"]] = relationship("Buchung")
+
+    __table_args__ = (
+        CheckConstraint("einheit IN ('liter', 'kwh')", name="ck_fahrzeug_tankung_einheit"),
+    )
+
+
+class FahrzeugKostenkategorie(Base):
+    """Welche Kategorien zu diesem Fahrzeug gehören.
+
+    Gleicher Mechanismus wie beim Gebäude: die Jahressumme ist die Summe der
+    Buchungen dieser Kategorie. Eine Kategorie darf an genau einer
+    Kostenstelle hängen — „Kraftstoff" an zwei Fahrzeugen zählte jede
+    Tankstellenbuchung zweimal. Das prüft der Router.
+    """
+
+    __tablename__ = "fahrzeug_kostenkategorie"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    fahrzeug_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("fahrzeuge.id", ondelete="CASCADE"), nullable=False
+    )
+    kategorie_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("kategorien.id", ondelete="CASCADE"), nullable=False
+    )
+    sortierung: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    fahrzeug: Mapped["Fahrzeug"] = relationship("Fahrzeug", back_populates="kostenkategorien")
+    kategorie: Mapped["Kategorie"] = relationship("Kategorie")
+
+    __table_args__ = (
+        UniqueConstraint("fahrzeug_id", "kategorie_id", name="uq_fahrzeug_kategorie"),
+    )
+
+
+class FahrzeugTermin(Base):
+    """HU, Inspektion, Zahnriemen, Reifenwechsel.
+
+    Gespeichert ist nur das **Intervall**; wann der Termin fällig ist, wird in
+    `routers/fahrzeuge.py` gerechnet. Ein Datumsintervall ergibt ein Datum,
+    ein Kilometer-Intervall erst zusammen mit der Fahrleistung einen
+    voraussichtlichen Monat — gespeichert wäre das nach der ersten Fahrt
+    veraltet, dieselbe Entscheidung wie beim Kündigungstermin am Vertrag.
+
+    Ohne Intervall gibt es keinen Termin und keine Erinnerung, nur die
+    Historie der Durchführungen.
+    """
+
+    __tablename__ = "fahrzeug_termin"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    fahrzeug_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("fahrzeuge.id", ondelete="CASCADE"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    intervall_monate: Mapped[Optional[int]] = mapped_column(Integer)
+    intervall_km: Mapped[Optional[int]] = mapped_column(Integer)
+    notiz: Mapped[Optional[str]] = mapped_column(Text)
+    aktiv: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
+    fahrzeug: Mapped["Fahrzeug"] = relationship("Fahrzeug", back_populates="termine")
+    erledigungen: Mapped[List["FahrzeugTerminErledigung"]] = relationship(
+        "FahrzeugTerminErledigung",
+        back_populates="termin",
+        cascade="all, delete-orphan",
+        order_by="FahrzeugTerminErledigung.datum.desc()",
+    )
+
+
+class FahrzeugTerminErledigung(Base):
+    """Eine Durchführung: Datum, Kilometerstand, bei Bedarf die Buchung.
+
+    Der Kilometerstand zählt als Stand mit — ein Werkstattbesuch ist eine
+    Ablesung. Die Kosten stehen an der verknüpften Buchung; eine Rechnung ohne
+    Buchung bleibt ohne Betrag.
+    """
+
+    __tablename__ = "fahrzeug_termin_erledigung"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    termin_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("fahrzeug_termin.id", ondelete="CASCADE"), nullable=False
+    )
+    datum: Mapped[str] = mapped_column(String, nullable=False)
+    km: Mapped[Optional[int]] = mapped_column(Integer)
+    buchung_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("buchungen.id", ondelete="SET NULL")
+    )
+    notiz: Mapped[Optional[str]] = mapped_column(Text)
+
+    termin: Mapped["FahrzeugTermin"] = relationship("FahrzeugTermin", back_populates="erledigungen")
+    buchung: Mapped[Optional["Buchung"]] = relationship("Buchung")

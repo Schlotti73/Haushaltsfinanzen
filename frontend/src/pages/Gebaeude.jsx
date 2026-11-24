@@ -872,6 +872,46 @@ function FotoVorschau({ datei, className }) {
   return <img src={url} alt="Gewähltes Zählwerk-Foto" className={className} />
 }
 
+// Zaehlerstand-Fotos liegen in der Ablage und wandern in jedes Backup. Ein
+// Handyfoto bringt mehrere Megabyte mit, ohne dass die Ziffern dadurch besser
+// zu lesen waeren: erst die laengste Kante begrenzen, dann die Qualitaet
+// senken, bis die Datei unter der Grenze liegt.
+const FOTO_GRENZE = 1024 * 1024
+const FOTO_KANTE = 2000
+const FOTO_STUFEN = [0.9, 0.8, 0.7, 0.6, 0.5]
+
+// Ein verkleinertes Abbild der Leinwand. Faktor 1 gibt das Original zurueck,
+// damit ein ohnehin kleines Bild nicht ohne Not neu gezeichnet wird.
+function verkleinert(quelle, faktor) {
+  if (faktor >= 1) return quelle
+  const c = document.createElement('canvas')
+  c.width = Math.max(1, Math.round(quelle.width * faktor))
+  c.height = Math.max(1, Math.round(quelle.height * faktor))
+  c.getContext('2d').drawImage(quelle, 0, 0, c.width, c.height)
+  return c
+}
+
+const alsJpeg = (canvas, guete) =>
+  new Promise((fertig) => canvas.toBlob(fertig, 'image/jpeg', guete))
+
+// Erst die Kante, dann die Qualitaet, dann notfalls noch einmal die Kante.
+// Reicht auch die letzte Runde nicht, wird das kleinste Ergebnis genommen -
+// ein Foto gar nicht zu speichern waere schlechter als ein zu grosses.
+async function unterGrenze(canvas) {
+  let c = verkleinert(canvas, Math.min(1, FOTO_KANTE / Math.max(canvas.width, canvas.height)))
+  let kleinstes = null
+  for (let runde = 0; runde < 4; runde++) {
+    for (const guete of FOTO_STUFEN) {
+      const blob = await alsJpeg(c, guete)
+      if (!blob) return kleinstes
+      if (!kleinstes || blob.size < kleinstes.size) kleinstes = blob
+      if (blob.size <= FOTO_GRENZE) return blob
+    }
+    c = verkleinert(c, 0.75)
+  }
+  return kleinstes
+}
+
 // ── Foto zuschneiden und drehen, bevor es hochgeladen wird ──────────────────
 // Bewusst im Browser: so geht nur der Ausschnitt über die Leitung, und am Handy
 // ist das der Moment, in dem man das Bild noch vor Augen hat. Der 90°-Knopf ist
@@ -881,6 +921,7 @@ const ANZEIGE_MAX = { breite: 560, hoehe: 320 }
 const STANDARD_AUSSCHNITT = { x: 0.08, y: 0.3, b: 0.84, h: 0.4 }
 
 function FotoZuschnitt({ datei, onFertig, onAbbrechen }) {
+  const [arbeitet, setArbeitet] = useState(false)
   const [bild, setBild] = useState(null)
   const [drehung, setDrehung] = useState(0)
   const [aus, setAus] = useState(STANDARD_AUSSCHNITT)   // Anteile des gedrehten Bildes, 0..1
@@ -977,8 +1018,9 @@ function FotoZuschnitt({ datei, onFertig, onAbbrechen }) {
     setAus((a) => (a.b < 0.04 || a.h < 0.04 ? STANDARD_AUSSCHNITT : a))
   }
 
-  const uebernehmen = (ganz = false) => {
-    if (!bild || !gedreht) return
+  const uebernehmen = async (ganz = false) => {
+    if (!bild || !gedreht || arbeitet) return
+    setArbeitet(true)
     const bereich = ganz ? { x: 0, y: 0, b: 1, h: 1 } : aus
     const quelle = document.createElement('canvas')
     quelle.width = gedreht.b
@@ -996,10 +1038,10 @@ function FotoZuschnitt({ datei, onFertig, onAbbrechen }) {
     ziel.width = sb
     ziel.height = sh
     ziel.getContext('2d').drawImage(quelle, sx, sy, sb, sh, 0, 0, sb, sh)
-    ziel.toBlob((blob) => {
-      if (!blob) { setFehler('Der Ausschnitt konnte nicht erzeugt werden.'); return }
-      onFertig(new File([blob], 'zaehlerstand.jpg', { type: 'image/jpeg' }))
-    }, 'image/jpeg', 0.9)
+    const blob = await unterGrenze(ziel)
+    setArbeitet(false)
+    if (!blob) { setFehler('Der Ausschnitt konnte nicht erzeugt werden.'); return }
+    onFertig(new File([blob], 'zaehlerstand.jpg', { type: 'image/jpeg' }))
   }
 
   return (
@@ -1013,8 +1055,10 @@ function FotoZuschnitt({ datei, onFertig, onAbbrechen }) {
             <DrehenIcon className="w-4 h-4" /> 90° drehen
           </button>
           <div className="flex gap-2">
-            <button className="btn-secondary" onClick={() => uebernehmen(true)}>Ganzes Foto</button>
-            <button className="btn-primary" disabled={!bild} onClick={() => uebernehmen(false)}>Übernehmen</button>
+            <button className="btn-secondary" disabled={arbeitet} onClick={() => uebernehmen(true)}>Ganzes Foto</button>
+            <button className="btn-primary" disabled={!bild || arbeitet} onClick={() => uebernehmen(false)}>
+              {arbeitet ? 'Verkleinert…' : 'Übernehmen'}
+            </button>
           </div>
         </div>
       }

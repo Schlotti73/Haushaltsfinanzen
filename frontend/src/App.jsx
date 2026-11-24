@@ -8,6 +8,8 @@ import Konten from './pages/Konten'
 import Kategorien from './pages/Kategorien'
 import Projekte from './pages/Projekte'
 import Gebaeude from './pages/Gebaeude'
+import Vertraege from './pages/Vertraege'
+import Fahrzeuge from './pages/Fahrzeuge'
 import Benutzer from './pages/Benutzer'
 import Statistik from './pages/Statistik'
 import Liquiditaet from './pages/Liquiditaet'
@@ -45,6 +47,8 @@ function AppRoutes() {
         <Route path="kategorien" element={<Kategorien />} />
         <Route path="projekte" element={<Projekte />} />
         <Route path="gebaeude" element={<Gebaeude />} />
+        <Route path="vertraege" element={<Vertraege />} />
+        <Route path="fahrzeuge" element={<Fahrzeuge />} />
         <Route path="benutzer" element={<Benutzer />} />
         <Route path="empfaenger" element={<Empfaenger />} />
         <Route path="import" element={<Import />} />

@@ -427,12 +427,18 @@ class DashboardEinstellungen(BaseModel):
     # Schwellen der Erinnerungen. Grenzen wie in app.services.einstellungen.
     erinnerung_import_tage: int = Field(35, ge=1, le=365)
     erinnerung_vorlauf_monate: int = Field(3, ge=1, le=24)
+    erinnerung_kuendigung_tage: int = Field(60, ge=1, le=365)
+    erinnerung_fahrzeug_tage: int = Field(60, ge=1, le=365)
+    erinnerung_fahrzeug_km: int = Field(2000, ge=100, le=50000)
     # Je Art ein Schalter. Die Schwelle bleibt auch bei "aus" erhalten, damit
     # der eingestellte Wert beim Wiedereinschalten wieder gilt.
     erinnerung_ablesungen_an: bool = True
     erinnerung_import_an: bool = True
     erinnerung_vorlauf_an: bool = True
     erinnerung_ueberfaellig_an: bool = True
+    erinnerung_kuendigung_an: bool = True
+    erinnerung_fahrzeug_an: bool = True
+    erinnerung_kmstand_an: bool = True
 
 
 # Lesend bewusst ohne require_admin: jeder angemeldete Benutzer rendert damit
@@ -443,10 +449,16 @@ def get_dashboard(db: Session = Depends(get_db), _: Benutzer = Depends(get_curre
         finanzsaldo=einst.dashboard_finanzsaldo(db),
         erinnerung_import_tage=einst.erinnerung_import_tage(db),
         erinnerung_vorlauf_monate=einst.erinnerung_vorlauf_monate(db),
+        erinnerung_kuendigung_tage=einst.erinnerung_kuendigung_tage(db),
         erinnerung_ablesungen_an=einst.erinnerung_ablesungen_an(db),
         erinnerung_import_an=einst.erinnerung_import_an(db),
         erinnerung_vorlauf_an=einst.erinnerung_vorlauf_an(db),
         erinnerung_ueberfaellig_an=einst.erinnerung_ueberfaellig_an(db),
+        erinnerung_kuendigung_an=einst.erinnerung_kuendigung_an(db),
+        erinnerung_fahrzeug_tage=einst.erinnerung_fahrzeug_tage(db),
+        erinnerung_fahrzeug_km=einst.erinnerung_fahrzeug_km(db),
+        erinnerung_fahrzeug_an=einst.erinnerung_fahrzeug_an(db),
+        erinnerung_kmstand_an=einst.erinnerung_kmstand_an(db),
     )
 
 
@@ -459,11 +471,17 @@ def put_dashboard(
     einst.schreibe(db, einst.DASHBOARD_FINANZSALDO, "1" if body.finanzsaldo else "0")
     einst.schreibe(db, einst.ERINNERUNG_IMPORT_TAGE, str(body.erinnerung_import_tage))
     einst.schreibe(db, einst.ERINNERUNG_VORLAUF_MONATE, str(body.erinnerung_vorlauf_monate))
+    einst.schreibe(db, einst.ERINNERUNG_KUENDIGUNG_TAGE, str(body.erinnerung_kuendigung_tage))
+    einst.schreibe(db, einst.ERINNERUNG_FAHRZEUG_TAGE, str(body.erinnerung_fahrzeug_tage))
+    einst.schreibe(db, einst.ERINNERUNG_FAHRZEUG_KM, str(body.erinnerung_fahrzeug_km))
     for schluessel, an in (
         (einst.ERINNERUNG_ABLESUNGEN_AN, body.erinnerung_ablesungen_an),
         (einst.ERINNERUNG_IMPORT_AN, body.erinnerung_import_an),
         (einst.ERINNERUNG_VORLAUF_AN, body.erinnerung_vorlauf_an),
         (einst.ERINNERUNG_UEBERFAELLIG_AN, body.erinnerung_ueberfaellig_an),
+        (einst.ERINNERUNG_KUENDIGUNG_AN, body.erinnerung_kuendigung_an),
+        (einst.ERINNERUNG_FAHRZEUG_AN, body.erinnerung_fahrzeug_an),
+        (einst.ERINNERUNG_KMSTAND_AN, body.erinnerung_kmstand_an),
     ):
         einst.schreibe(db, schluessel, "1" if an else "0")
     db.commit()

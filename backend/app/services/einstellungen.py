@@ -28,6 +28,7 @@ DASHBOARD_FINANZSALDO = "dashboard_finanzsaldo"
 # Erinnerungen auf dem Dashboard: ab wann eine Sache als ueberfaellig gilt.
 ERINNERUNG_IMPORT_TAGE = "erinnerung_import_tage"
 ERINNERUNG_VORLAUF_MONATE = "erinnerung_vorlauf_monate"
+ERINNERUNG_KUENDIGUNG_TAGE = "erinnerung_kuendigung_tage"
 
 # Je Art ein Ein/Aus-Schalter. Bewusst getrennt von der Schwelle und nicht als
 # Sonderwert 0 darin: zwei der vier Arten haben gar keine Schwelle, und so
@@ -37,6 +38,18 @@ ERINNERUNG_ABLESUNGEN_AN = "erinnerung_ablesungen_an"
 ERINNERUNG_IMPORT_AN = "erinnerung_import_an"
 ERINNERUNG_VORLAUF_AN = "erinnerung_vorlauf_an"
 ERINNERUNG_UEBERFAELLIG_AN = "erinnerung_ueberfaellig_an"
+ERINNERUNG_KUENDIGUNG_AN = "erinnerung_kuendigung_an"
+
+# Fahrzeuge: Vorlauf doppelt, weil ein Termin zwei Maßstäbe hat. Die HU laeuft
+# nach Datum ab, der Zahnriemen nach Kilometern, und welcher von beiden zuerst
+# erreicht wird, haengt daran, wie viel gefahren wird.
+ERINNERUNG_FAHRZEUG_TAGE = "erinnerung_fahrzeug_tage"
+ERINNERUNG_FAHRZEUG_KM = "erinnerung_fahrzeug_km"
+ERINNERUNG_FAHRZEUG_AN = "erinnerung_fahrzeug_an"
+# Eigener Schalter fuer den fehlenden Kilometerstand zum 31.12.: wer keine
+# Kosten je Kilometer auswertet, braucht ihn nicht, waehrend die Termine
+# weiterhin gemahnt werden sollen.
+ERINNERUNG_KMSTAND_AN = "erinnerung_kmstand_an"
 
 _DEFAULTS: dict[str, str] = {
     BETRAG_TOLERANZ: "5.0",
@@ -47,12 +60,22 @@ _DEFAULTS: dict[str, str] = {
     # Buchungen nachzuziehen, bevor die Liquiditaetsvorschau duenn wird.
     ERINNERUNG_IMPORT_TAGE: "35",
     ERINNERUNG_VORLAUF_MONATE: "3",
+    # 60 Tage: drei Monate Kuendigungsfrist sind ueblich, und wer erst 30 Tage
+    # vor dem Termin erfaehrt, haette schon vor 60 Tagen kuendigen muessen.
+    ERINNERUNG_KUENDIGUNG_TAGE: "60",
     # Alle vier an: ein Update soll keine Erinnerung verstummen lassen, die
     # vorher sichtbar war.
     ERINNERUNG_ABLESUNGEN_AN: "1",
     ERINNERUNG_IMPORT_AN: "1",
     ERINNERUNG_VORLAUF_AN: "1",
     ERINNERUNG_UEBERFAELLIG_AN: "1",
+    ERINNERUNG_KUENDIGUNG_AN: "1",
+    # 60 Tage und 2.000 Kilometer: bei durchschnittlicher Fahrleistung sind das
+    # beide etwa zwei Monate, genug Zeit fuer einen Werkstatttermin.
+    ERINNERUNG_FAHRZEUG_TAGE: "60",
+    ERINNERUNG_FAHRZEUG_KM: "2000",
+    ERINNERUNG_FAHRZEUG_AN: "1",
+    ERINNERUNG_KMSTAND_AN: "1",
 }
 
 # Obergrenzen: das Tagesfenster steuert auch die DB-Abfrage und die Länge der
@@ -115,6 +138,11 @@ def erinnerung_vorlauf_monate(db: Session) -> int:
     return _zahl(db, ERINNERUNG_VORLAUF_MONATE, 1, 24)
 
 
+def erinnerung_kuendigung_tage(db: Session) -> int:
+    """Tage Vorlauf, mit denen das Dashboard an einen Kuendigungstermin erinnert."""
+    return _zahl(db, ERINNERUNG_KUENDIGUNG_TAGE, 1, 365)
+
+
 def _an(db: Session, schluessel: str) -> bool:
     """Ein Schalter ist nur bei ausdruecklichem "0" aus.
 
@@ -143,3 +171,31 @@ def erinnerung_vorlauf_an(db: Session) -> bool:
 def erinnerung_ueberfaellig_an(db: Session) -> bool:
     """Ob das Dashboard an ueberfaellige geplante Buchungen erinnert."""
     return _an(db, ERINNERUNG_UEBERFAELLIG_AN)
+
+
+def erinnerung_kuendigung_an(db: Session) -> bool:
+    """Ob das Dashboard an naeherrueckende Kuendigungstermine erinnert."""
+    return _an(db, ERINNERUNG_KUENDIGUNG_AN)
+
+
+def erinnerung_fahrzeug_tage(db: Session) -> int:
+    """Tage Vorlauf, mit denen das Dashboard an einen Fahrzeugtermin erinnert."""
+    return _zahl(db, ERINNERUNG_FAHRZEUG_TAGE, 1, 365)
+
+
+def erinnerung_fahrzeug_km(db: Session) -> int:
+    """Kilometer Vorlauf, mit denen das Dashboard an einen Fahrzeugtermin erinnert.
+
+    Gilt neben den Tagen, nicht statt ihnen: erreicht wird, was zuerst kommt.
+    """
+    return _zahl(db, ERINNERUNG_FAHRZEUG_KM, 100, 50000)
+
+
+def erinnerung_fahrzeug_an(db: Session) -> bool:
+    """Ob das Dashboard an naeherrueckende Fahrzeugtermine erinnert."""
+    return _an(db, ERINNERUNG_FAHRZEUG_AN)
+
+
+def erinnerung_kmstand_an(db: Session) -> bool:
+    """Ob das Dashboard an fehlende Kilometerstaende zum 31.12. erinnert."""
+    return _an(db, ERINNERUNG_KMSTAND_AN)

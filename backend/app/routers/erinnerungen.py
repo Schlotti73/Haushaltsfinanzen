@@ -32,6 +32,8 @@ from app.auth import get_current_user
 from app.database import get_db
 from app.models import Buchung, Konto, WiederkehrendeBuchung
 from app.routers.gebaeude import sammle_offene_ablesungen
+from app.routers.fahrzeuge import sammle_offene_staende, sammle_termine
+from app.routers.vertraege import sammle_fristen
 from app.schemas import Erinnerung
 from app.services import einstellungen as einst
 
@@ -139,6 +141,87 @@ def _ueberfaellig(db: Session, heute: date) -> Erinnerung | None:
     )
 
 
+def _kuendigungen(db: Session, heute: date) -> Erinnerung | None:
+    """Vertraege, deren Kuendigungstermin naeherrueckt.
+
+    Die einzige Erinnerung, bei der das Versaeumnis Geld kostet statt nur
+    Ordnung: ist der Termin vorbei, laeuft der Vertrag eine weitere Periode.
+    Der Termin selbst ist gerechnet, nicht gespeichert - siehe
+    `routers/vertraege.kuendigungstermin`.
+    """
+    tage = einst.erinnerung_kuendigung_tage(db)
+    treffer = sammle_fristen(db, heute, tage)
+    if not treffer:
+        return None
+    naechster = treffer[0]
+    return Erinnerung(
+        art="kuendigung",
+        text=("Ein Vertrag kann bald nicht mehr gekündigt werden" if len(treffer) == 1
+              else f"{len(treffer)} Verträge können bald nicht mehr gekündigt werden"),
+        # Beim naechsten Termin die Tage, sonst waere die Zeile bei mehreren
+        # Vertraegen nur eine Zahl ohne Dringlichkeit.
+        zusatz=(f"{naechster[0].name}: noch {(naechster[1] - heute).days} Tage"
+                if len(treffer) == 1
+                else f"frühester Termin {naechster[1]} ({naechster[0].name})"),
+        anzahl=len(treffer),
+        ziel="/vertraege",
+    )
+
+
+def _fahrzeugtermine(db: Session, heute: date) -> Erinnerung | None:
+    """Fahrzeugtermine, die nach Datum oder nach Kilometern naeherruecken.
+
+    Zwei Vorlaeufe, weil ein Termin zwei Maßstaebe hat: die HU laeuft nach
+    Datum ab, der Zahnriemen nach Kilometern. Gemahnt wird, was zuerst
+    erreicht wird - der Kilometerstand gerechnet aus dem letzten Stand und der
+    Fahrleistung der letzten zwoelf Monate.
+    """
+    treffer = sammle_termine(
+        db, heute, einst.erinnerung_fahrzeug_tage(db), einst.erinnerung_fahrzeug_km(db)
+    )
+    if not treffer:
+        return None
+    fahrzeug, termin, lage = treffer[0]
+    if lage["rest_tage"] is not None and (
+        lage["rest_km"] is None or lage["rest_tage"] <= 0 or lage["rest_km"] > lage["rest_tage"]
+    ):
+        naeher = f"noch {lage['rest_tage']} Tage"
+    else:
+        naeher = f"noch {lage['rest_km']} km"
+    if lage["ueberfaellig"]:
+        naeher = "überfällig"
+    return Erinnerung(
+        art="fahrzeug_termin",
+        text=("Ein Fahrzeugtermin steht an" if len(treffer) == 1
+              else f"{len(treffer)} Fahrzeugtermine stehen an"),
+        zusatz=f"{fahrzeug.name} · {termin.name}: {naeher}",
+        anzahl=len(treffer),
+        ziel="/fahrzeuge",
+    )
+
+
+def _kmstaende(db: Session, heute: date) -> Erinnerung | None:
+    """Fehlende Kilometerstaende zum 31.12.
+
+    Dieselbe Rolle wie die Jahresablesung am Zaehler: ohne den Stand zum
+    Jahresende ist die Fahrleistung des Jahres zu kurz gerechnet und die
+    Kosten je Kilometer damit zu hoch.
+    """
+    offen = sammle_offene_staende(db, heute)
+    if not offen:
+        return None
+    jahre = sum(len(fehlend) for _f, fehlend in offen)
+    return Erinnerung(
+        art="kmstand",
+        text=("Ein Kilometerstand zum Jahresende fehlt" if jahre == 1
+              else f"{jahre} Kilometerstände zum Jahresende fehlen"),
+        zusatz=(f"bei {offen[0][0].name}" if len(offen) == 1
+                else f"bei {len(offen)} Fahrzeugen"),
+        anzahl=jahre,
+        ziel="/fahrzeuge",
+    )
+
+
 @router.get("", response_model=List[Erinnerung])
 def list_erinnerungen(db: Session = Depends(get_db), _=Depends(get_current_user)):
     heute = date.today()
@@ -153,4 +236,10 @@ def list_erinnerungen(db: Session = Depends(get_db), _=Depends(get_current_user)
         arten.append(_vorlauf(db, heute))
     if einst.erinnerung_ueberfaellig_an(db):
         arten.append(_ueberfaellig(db, heute))
+    if einst.erinnerung_kuendigung_an(db):
+        arten.append(_kuendigungen(db, heute))
+    if einst.erinnerung_fahrzeug_an(db):
+        arten.append(_fahrzeugtermine(db, heute))
+    if einst.erinnerung_kmstand_an(db):
+        arten.append(_kmstaende(db, heute))
     return [e for e in arten if e is not None]

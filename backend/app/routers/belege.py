@@ -15,7 +15,9 @@ from sqlalchemy.orm import Session
 from app.auth import get_current_user, require_admin
 from app.config import settings
 from app.database import get_db
-from app.models import Beleg, Buchung, Gebaeude, HaushaltsbuchEintrag, ZaehlerAblesung
+from app.models import (
+    Beleg, Buchung, Fahrzeug, Gebaeude, HaushaltsbuchEintrag, Vertrag, ZaehlerAblesung,
+)
 
 try:  # OpenCV ist optional (wie bei der OCR-Pipeline) - ohne bleibt das Original erhalten
     import cv2
@@ -353,3 +355,103 @@ def beleg_loeschen_ablesung(
     _=Depends(get_current_user),
 ):
     return _beleg_entfernen(db, _beleg_holen(db, beleg_id, Beleg.zaehler_ablesung_id, ablesung_id))
+
+
+# ── Unterlagen am Vertrag ───────────────────────────────────────────────────
+# Police, Nachtrag, Preiserhoehung, Kuendigungsschreiben: sie gehoeren zum
+# Vertrag und nicht zu einer einzelnen Zahlung, an der sie nur zufaellig
+# haengen wuerden. Mehrere je Vertrag, anders als beim Zaehlerfoto - ein
+# Vertrag sammelt seine Unterlagen ueber Jahre.
+
+@router.post("/vertrag/{vertrag_id}")
+async def beleg_hochladen_vertrag(
+    vertrag_id: int,
+    datei: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    user=Depends(require_admin),
+):
+    if db.get(Vertrag, vertrag_id) is None:
+        raise HTTPException(404, "Vertrag nicht gefunden")
+    return await _beleg_anlegen(datei, f"vertrag-{vertrag_id}", db, user, vertrag_id=vertrag_id)
+
+
+@router.get("/vertrag/{vertrag_id}")
+def belege_liste_vertrag(
+    vertrag_id: int,
+    db: Session = Depends(get_db),
+    _=Depends(get_current_user),
+):
+    belege = db.query(Beleg).filter(Beleg.vertrag_id == vertrag_id).order_by(Beleg.id).all()
+    return [{"id": b.id, "dateiname": b.dateiname} for b in belege]
+
+
+@router.get("/vertrag/{vertrag_id}/{beleg_id}/datei")
+def beleg_datei_vertrag(
+    vertrag_id: int,
+    beleg_id: int,
+    db: Session = Depends(get_db),
+    _=Depends(get_current_user),
+):
+    return _beleg_antwort(_beleg_holen(db, beleg_id, Beleg.vertrag_id, vertrag_id))
+
+
+@router.delete("/vertrag/{vertrag_id}/{beleg_id}")
+def beleg_loeschen_vertrag(
+    vertrag_id: int,
+    beleg_id: int,
+    db: Session = Depends(get_db),
+    _=Depends(require_admin),
+):
+    return _beleg_entfernen(db, _beleg_holen(db, beleg_id, Beleg.vertrag_id, vertrag_id))
+
+
+# ── Unterlagen am Fahrzeug ──────────────────────────────────────────────────
+# Fahrzeugschein, HU-Bericht, Werkstattrechnung, Leasingvertrag. Wie beim
+# Vertrag mehrere je Fahrzeug: ein Fahrzeug sammelt seine Unterlagen ueber
+# Jahre, und sie gehoeren dem Fahrzeug, nicht einer einzelnen Zahlung.
+#
+# Gelesen von jedem angemeldeten Benutzer, geschrieben nur von Admins -
+# dieselbe Teilung wie am Vertrag. Beim Loeschen des Fahrzeugs raeumt
+# `routers/fahrzeuge.delete_fahrzeug` den Ordner `fahrzeug-<id>` selbst ab; die
+# Kaskade der Datenbank kennt nur die Zeilen.
+
+@router.post("/fahrzeug/{fahrzeug_id}")
+async def beleg_hochladen_fahrzeug(
+    fahrzeug_id: int,
+    datei: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    user=Depends(require_admin),
+):
+    if db.get(Fahrzeug, fahrzeug_id) is None:
+        raise HTTPException(404, "Fahrzeug nicht gefunden")
+    return await _beleg_anlegen(datei, f"fahrzeug-{fahrzeug_id}", db, user, fahrzeug_id=fahrzeug_id)
+
+
+@router.get("/fahrzeug/{fahrzeug_id}")
+def belege_liste_fahrzeug(
+    fahrzeug_id: int,
+    db: Session = Depends(get_db),
+    _=Depends(get_current_user),
+):
+    belege = db.query(Beleg).filter(Beleg.fahrzeug_id == fahrzeug_id).order_by(Beleg.id).all()
+    return [{"id": b.id, "dateiname": b.dateiname} for b in belege]
+
+
+@router.get("/fahrzeug/{fahrzeug_id}/{beleg_id}/datei")
+def beleg_datei_fahrzeug(
+    fahrzeug_id: int,
+    beleg_id: int,
+    db: Session = Depends(get_db),
+    _=Depends(get_current_user),
+):
+    return _beleg_antwort(_beleg_holen(db, beleg_id, Beleg.fahrzeug_id, fahrzeug_id))
+
+
+@router.delete("/fahrzeug/{fahrzeug_id}/{beleg_id}")
+def beleg_loeschen_fahrzeug(
+    fahrzeug_id: int,
+    beleg_id: int,
+    db: Session = Depends(get_db),
+    _=Depends(require_admin),
+):
+    return _beleg_entfernen(db, _beleg_holen(db, beleg_id, Beleg.fahrzeug_id, fahrzeug_id))

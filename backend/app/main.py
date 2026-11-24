@@ -14,7 +14,7 @@ from app.routers import (
     statistik, belege, generierung,
     empfaenger, import_pdf, import_regel,
     geschaeft, haushaltsbuch, einstellungen, datenbanken, gebaeude,
-    erinnerungen, update,
+    vertraege, fahrzeuge, erinnerungen, update,
 )
 
 
@@ -80,6 +80,8 @@ app.include_router(haushaltsbuch.router, prefix="/api")
 app.include_router(einstellungen.router, prefix="/api")
 app.include_router(datenbanken.router, prefix="/api")
 app.include_router(gebaeude.router, prefix="/api")
+app.include_router(vertraege.router, prefix="/api")
+app.include_router(fahrzeuge.router, prefix="/api")
 app.include_router(erinnerungen.router, prefix="/api")
 app.include_router(update.router, prefix="/api")
 
