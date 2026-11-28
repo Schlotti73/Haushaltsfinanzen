@@ -5,8 +5,8 @@ der Seitenleiste und waere sonst nur fuer Administratoren da. Alles, was
 schreibt oder Daten holt (Herkunft aendern, ZIP herunterladen), bleibt den
 Administratoren vorbehalten.
 
-Siehe app/services/update.py fuer die Begruendung des Kanals: ein eigenes,
-oeffentliches Paket-Repository, das ohne Zugangsdaten auskommt.
+Siehe app/services/update.py fuer die Begruendung des Kanals: das oeffentliche
+Repository des Projekts, das ohne Zugangsdaten auskommt.
 """
 
 from __future__ import annotations

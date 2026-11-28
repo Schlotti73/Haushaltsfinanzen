@@ -231,14 +231,14 @@ dem Anmeldenamen.
 
 ### Woher die Pakete kommen
 
-Gefragt wird ein **eigenes, öffentliches Repository**, das nichts als die
-Pakete enthält:
+Gefragt wird das **öffentliche Repository des Projekts**:
 
 ```
-https://github.com/Schlotti73/Haushaltsfinanz-Releases
+https://github.com/Schlotti73/Haushaltsfinanzen
 ```
 
-Der Quellcode bleibt im privaten Entwicklungs-Repository. Die Abfrage braucht
+Dort liegt der veröffentlichte Quellstand, dort hängt das Container-Image, und
+dort trägt jede Version ein Release mit dem Windows-Paket. Die Abfrage braucht
 damit **keine Zugangsdaten**, und es kann nichts ablaufen.
 
 Warum nicht einfach das private Repository? Dort bräuchte jede Installation
@@ -246,8 +246,12 @@ ein Personal Access Token, und dessen kleinste passende Berechtigung
 (`Contents: Read`) umfasst zwangsläufig den gesamten Quellcode – eine
 Beschränkung auf „nur die Release-Anhänge" kennt GitHub nicht. Dazu laufen
 Token ab, je Installation einzeln, und GitHub erneuert sie nicht von selbst.
-Das ZIP enthält ohnehin den Quellcode; die Trennung schützt also nichts, was
-ein Token zu schützen hätte.
+
+Bis v0.6.1 lagen die Pakete in einem eigenen Repository, das nichts als die
+ZIPs enthielt – einen öffentlichen Quellstand gab es damals noch nicht, und
+das ZIP enthält ohnehin den Quellcode. Dieses Repository ist archiviert, seine
+alten Releases bleiben erreichbar. Eine Installation, die noch darauf zeigt,
+liest die Angabe auf den neuen Ort um; umzustellen ist nichts.
 
 Ein Token lässt sich trotzdem eintragen, falls die Pakete später wieder
 privat liegen. Es landet dann in `<Datenordner>\config\update.json`, steht in
@@ -257,19 +261,34 @@ stehen.
 
 ### Release veröffentlichen
 
-`create_prod_zip.ps1` legt nur Tag und ZIP an und nennt am Ende den passenden
-Befehl. Das Hochladen bleibt ein bewusster Schritt:
+`create_prod_zip.ps1` legt nur Tag und ZIP an und nennt am Ende die passenden
+Befehle. Hochgeladen wird in drei bewussten Schritten:
 
 ```powershell
-git push --tags
-gh release create v1.5.0 .\Haushaltsfinanz_v1.5.0.zip `
-   --repo Schlotti73/Haushaltsfinanz-Releases `
-   --title v1.5.0 --notes "..."
+git push origin main --follow-tags
 ```
 
-Erst damit sehen die laufenden Installationen das Update. Das Tag im
-öffentlichen Repository zeigt auf dessen `main` – es ist nur eine Marke am
-Release, die Historie liegt weiter im privaten Repository.
+```powershell
+.\scripts\prod\veroeffentlichen.ps1 -Nachricht "..."
+```
+
+Der zweite Aufruf hebt den Dateibestand in das öffentliche Repository und
+nimmt den Versions-Tag mit. Erst dort löst er den Bau des Container-Images aus
+(`.github/workflows/docker.yml`); auf dem privaten Repository baut dieselbe
+Datei nur zur Probe und pusht nichts.
+
+```powershell
+gh release create v1.5.0 .\Haushaltsfinanz_v1.5.0.zip `
+   --repo Schlotti73/Haushaltsfinanzen `
+   --title v1.5.0 --notes-file $env:TEMP\Haushaltsfinanz_v1.5.0_hinweise.md
+```
+
+Das Release ist das **Signal**: erst damit sehen die laufenden Installationen
+das Update. Es gehört deshalb ans Ende – nach dem Image-Bau und nach dem
+Update-Test. Läge es davor, zeigte „v1.5.0 ist verfügbar" auf eine Fassung,
+die es für den Container noch nicht gibt. Die Beschreibung schneidet
+`create_prod_zip.ps1` aus `docs\aenderungen.md` heraus; der Tag ist drüben ein
+echter Tag auf dem veröffentlichten Stand, keine Marke am Release.
 
 ### Download
 

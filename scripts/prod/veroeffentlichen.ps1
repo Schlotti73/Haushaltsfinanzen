@@ -13,6 +13,12 @@
 # drueben ankommt, ist genau der Dateibestand von hier - ohne jeden Commit,
 # der hier je gemacht wurde.
 #
+# Sitzt auf HEAD ein Versions-Tag (v*), wandert er mit - gesetzt auf den
+# Baum-Commit, den dieses Skript baut. Drueben ist er kein Beiwerk: er loest
+# .github/workflows/docker.yml aus, und daraus entsteht das Container-Image
+# zur Version. Sitzt keiner auf HEAD, wird nur der Stand veroeffentlicht -
+# eine Zwischenveroeffentlichung von Doku oder Rundgang braucht kein Image.
+#
 # Aufruf (aus dem Projektstamm):
 #   .\scripts\prod\veroeffentlichen.ps1 -Trockenlauf
 #   .\scripts\prod\veroeffentlichen.ps1 -Nachricht "Texterkennung im Image"
@@ -30,10 +36,7 @@ param(
     # Committer stehen bei GitHub offen in jedem Commit - an einer Stelle, die
     # keine Dateipruefung je zu sehen bekommt. Die noreply-Adresse von GitHub
     # weist den Commit demselben Konto zu, ohne die Adresse zu nennen.
-    [string]$Absender = "Schlotti73 <281000650+Schlotti73@users.noreply.github.com>",
-    # Das Repository der Release-Pakete. Es traegt keinen Baum, nur Releases -
-    # seine README wird darum ueber die API geschrieben, nicht gepusht.
-    [string]$ReleaseRepo = "Schlotti73/Haushaltsfinanz-Releases"
+    [string]$Absender = "Schlotti73 <281000650+Schlotti73@users.noreply.github.com>"
 )
 
 $ErrorActionPreference = "Stop"
@@ -48,73 +51,25 @@ function Abort([string]$msg) {
     exit 1
 }
 
-# Die README des Release-Repositories abgleichen.
+# Der Versions-Tag auf HEAD, oder "" wenn keiner da ist.
 #
-# Sie ist der einzige veroeffentlichte Text, der nicht im Baum steht: das
-# Release-Repository hat keinen, es traegt nur die ZIPs. Von Hand drueben
-# geschrieben liefe sie an der Inhaltspruefung vorbei - und gerade eine
-# Anleitung zieht Beispiele an, in denen Pfade und Namen stecken. Die Quelle
-# liegt deshalb hier (docs\release-repo-readme.md), wird mitgeprueft und von
-# hier aus ueber die API hinuebergeschrieben.
+# Das Container-Image entsteht drueben: dort liegt
+# .github/workflows/docker.yml, und ausgeloest wird sie von einem v*-Tag. Von
+# hier kann der Tag nicht einfach mitwandern, denn er zeigt auf einen Commit,
+# den es drueben nicht gibt - gepusht wird ja nur der Baum. Er wird deshalb an
+# den Baum-Commit gehaengt, den dieses Skript baut.
 #
-# Ein Fehlschlag ist ein Hinweis und kein Abbruch: die Veroeffentlichung
-# selbst ist zu diesem Zeitpunkt gelaufen, und ein rotes Ende wuerde das
-# Gegenteil behaupten.
-function ReleaseReadme([switch]$NurZeigen) {
-    $quelle = Join-Path $root "docs\release-repo-readme.md"
-    if (-not (Test-Path $quelle)) {
-        Write-Host "`n  Hinweis: $quelle fehlt - README von $ReleaseRepo unveraendert." -ForegroundColor DarkYellow
-        return
+# Mehrere Versions-Tags auf einem Commit sind ein Unfall (ein
+# zurueckgenommener Tag, der liegen geblieben ist). Raten waere hier teuer:
+# der Tag bestimmt die Version des Images.
+function TagAufHead() {
+    $tags = @(git tag --points-at HEAD 2>$null | Where-Object { $_ -match '^v\d' })
+    if ($tags.Count -eq 0) { return "" }
+    if ($tags.Count -gt 1) {
+        Abort "Auf HEAD sitzen mehrere Versions-Tags ($($tags -join ', ')) - unklar, welche Version veroeffentlicht werden soll."
     }
-    if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
-        Write-Host "`n  Hinweis: gh fehlt - README von $ReleaseRepo nicht abgeglichen." -ForegroundColor DarkYellow
-        return
-    }
-
-    # Zeilenenden spielen keine Rolle und wuerden sonst bei jedem Lauf eine
-    # Aenderung vortaeuschen.
-    $neu = ([IO.File]::ReadAllText($quelle) -replace "`r`n", "`n")
-    $alt = ""
-    $sha = ""
-    $roh = gh api "repos/$ReleaseRepo/contents/README.md" 2>$null
-    if ($LASTEXITCODE -eq 0 -and $roh) {
-        try {
-            $o   = ($roh -join "") | ConvertFrom-Json
-            $sha = $o.sha
-            $alt = [Text.Encoding]::UTF8.GetString(
-                       [Convert]::FromBase64String(($o.content -replace "\s", ""))) -replace "`r`n", "`n"
-        } catch {
-            Write-Host "`n  Hinweis: README von $ReleaseRepo nicht lesbar ($_)." -ForegroundColor DarkYellow
-            return
-        }
-    }
-
-    if ($alt -eq $neu) {
-        Write-Host "`n  README von ${ReleaseRepo}: unveraendert." -ForegroundColor DarkGray
-        return
-    }
-    if ($NurZeigen) {
-        $was = if ($sha) { "aktualisiert" } else { "angelegt" }
-        Write-Host "  README von $ReleaseRepo wuerde $was." -ForegroundColor Yellow
-        return
-    }
-
-    Step "Schreibe README nach $ReleaseRepo..."
-    $b64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($neu))
-    # Nicht $args nennen: das ist in PowerShell eine automatische Variable.
-    $ghArgs = @("api", "--method", "PUT", "repos/$ReleaseRepo/contents/README.md",
-                "-f", "message=README: Stand aus docs/release-repo-readme.md",
-                "-f", "content=$b64")
-    if ($sha) { $ghArgs += @("-f", "sha=$sha") }
-    & gh @ghArgs *> $null
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "  Hinweis: README konnte nicht geschrieben werden - von Hand nachziehen." -ForegroundColor DarkYellow
-        Write-Host "    https://github.com/$ReleaseRepo/blob/main/README.md" -ForegroundColor DarkYellow
-        return
-    }
-    Write-Host "  https://github.com/$ReleaseRepo#readme" -ForegroundColor Gray
+    return $tags[0].Trim()
 }
-
 Set-Location $root
 
 # -- 1. Voraussetzungen ------------------------------------------------------
@@ -158,11 +113,46 @@ $fremdCommit = if ($LASTEXITCODE -eq 0) { (git rev-parse FETCH_HEAD).Trim() } el
 
 $baum = (git rev-parse "$Zweig^{tree}").Trim()
 
+$tag = TagAufHead
+if ($tag) {
+    # Ein Release-Tag ist unveraenderlich: an ihm haengen das Image und das
+    # Release mit dem Windows-Paket. Liegt er drueben schon, ist diese Version
+    # veroeffentlicht - dann ist etwas anderes schiefgelaufen als dieser Lauf
+    # vermutet, und ein zweiter Tag auf denselben Namen waere die falsche
+    # Antwort darauf. Eine Korrektur braucht eine neue Version.
+    git ls-remote --exit-code --tags $Remote "refs/tags/$tag" *> $null
+    if ($LASTEXITCODE -eq 0) {
+        Abort "Tag '$tag' liegt in $Repo schon - diese Version ist veroeffentlicht. Eine Korrektur braucht eine neue Versionsnummer."
+    }
+    Write-Host "  Tag: $tag - loest drueben den Image-Bau aus" -ForegroundColor DarkGray
+} else {
+    Write-Host "  Kein Versions-Tag auf HEAD - nur der Stand wird veroeffentlicht, kein Image gebaut." -ForegroundColor DarkGray
+}
+
 if ($fremdCommit) {
     $fremdBaum = (git rev-parse "$fremdCommit^{tree}").Trim()
     Write-Host "  drueben: $($fremdCommit.Substring(0,7))  Baum $($fremdBaum.Substring(0,7))" -ForegroundColor DarkGray
     if ($fremdBaum -eq $baum) {
-        Write-Host "`nNichts zu tun: der veroeffentlichte Stand ist bereits dieser Baum." -ForegroundColor Green
+        if (-not $tag) {
+            Write-Host "`nNichts zu tun: der veroeffentlichte Stand ist bereits dieser Baum." -ForegroundColor Green
+            exit 0
+        }
+        # Baum schon drueben, Tag noch nicht: der Stand war vorab
+        # veroeffentlicht, jetzt kommt die Version dazu. Der Tag gehoert dann
+        # an den bestehenden Commit - sonst gaebe es zur Version kein Image.
+        # Die Inhaltspruefung entfaellt hier mit Absicht: oeffentlich wird
+        # nichts Neues, dieser Baum liegt Zeichen fuer Zeichen schon drueben.
+        Write-Host "  Baum liegt drueben schon - es fehlt nur der Tag '$tag'." -ForegroundColor DarkGray
+        if ($Trockenlauf) {
+            Write-Host "`nTrockenlauf - es wurde nichts gepusht." -ForegroundColor Green
+            Write-Host "  Gesetzt wuerde: Tag $tag auf $($fremdCommit.Substring(0,7)) in $Repo."
+            exit 0
+        }
+        Step "Setze Tag '$tag' auf den bestehenden Commit..."
+        git push $Remote "${fremdCommit}:refs/tags/$tag"
+        if ($LASTEXITCODE -ne 0) { Abort "Tag-Push nach $Repo fehlgeschlagen." }
+        Write-Host "`nTag '$tag' gesetzt." -ForegroundColor Green
+        Write-Host "  Image-Bau: https://github.com/$Repo/actions"
         exit 0
     }
 } else {
@@ -250,7 +240,7 @@ if (-not $Nachricht) {
 if ($Trockenlauf) {
     Write-Host "`nTrockenlauf - es wurde nichts gepusht." -ForegroundColor Green
     Write-Host "  Entstanden waere: ein Commit mit Baum $($baum.Substring(0,7)) auf $Repo ($Zweig)."
-    ReleaseReadme -NurZeigen
+    if ($tag) { Write-Host "  Dazu der Tag $tag - er loest drueben den Image-Bau aus." }
     exit 0
 }
 
@@ -273,8 +263,11 @@ try {
     $env:GIT_COMMITTER_NAME  = $absName
     $env:GIT_COMMITTER_EMAIL = $absMail
 
+    # Die Nachricht als Argument, nicht durch die Pipe: PowerShell schickt
+    # einem externen Programm je nach Konsole und Fassung ein BOM voraus, und
+    # das stuende dann unsichtbar am Anfang des oeffentlichen Commit-Textes.
     $elternArg = if ($fremdCommit) { @("-p", $fremdCommit) } else { @() }
-    $neu = ($Nachricht | git commit-tree $baum @elternArg)
+    $neu = (git commit-tree $baum @elternArg -m $Nachricht)
     if ($LASTEXITCODE -ne 0 -or -not $neu) { Abort "git commit-tree ist fehlgeschlagen." }
     $neu = $neu.Trim()
 }
@@ -290,9 +283,30 @@ finally {
 git push $Remote "${neu}:refs/heads/$Zweig"
 if ($LASTEXITCODE -ne 0) { Abort "Push nach $Repo fehlgeschlagen." }
 
-ReleaseReadme
+# Der Tag erst nach dem Zweig: er zeigt auf denselben Commit, und ein Tag auf
+# einen Commit, den drueben kein Zweig traegt, waere ein Fundstueck ohne
+# Zusammenhang. Ein Fehlschlag hier ist ein Hinweis und kein Abbruch - der
+# Stand ist dann schon veroeffentlicht, und ein rotes Ende wuerde das
+# Gegenteil behaupten.
+$tagGesetzt = $false
+if ($tag) {
+    Step "Setze Tag '$tag'..."
+    git push $Remote "${neu}:refs/tags/$tag"
+    if ($LASTEXITCODE -eq 0) {
+        $tagGesetzt = $true
+    } else {
+        Write-Host "  Hinweis: Tag-Push fehlgeschlagen - von Hand nachziehen, sonst entsteht kein Image:" -ForegroundColor DarkYellow
+        Write-Host "    git push $Remote ${neu}:refs/tags/$tag" -ForegroundColor DarkYellow
+    }
+}
 
 Write-Host "`nVeroeffentlicht." -ForegroundColor Green
 Write-Host "  Commit : $neu"
 Write-Host "  Repo   : https://github.com/$Repo/commits/$Zweig"
 Write-Host "  Seite  : https://schlotti73.github.io/Haushaltsfinanzen/demo/ (baut neu, sobald sich docs\ geaendert hat)"
+if ($tagGesetzt) {
+    Write-Host "  Tag    : $tag"
+    Write-Host "  Image  : https://github.com/$Repo/actions (Bau laeuft an)"
+    Write-Host "`nDanach: Update-Test auf dem Pruefstand, und erst dann das Release mit dem ZIP" -ForegroundColor Cyan
+    Write-Host "anlegen - es ist das Signal, an dem die Installationen die Version erkennen." -ForegroundColor Cyan
+}

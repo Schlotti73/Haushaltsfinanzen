@@ -15,8 +15,14 @@ die alte Historie gar nicht erst mitwandern.
 | | |
 |---|---|
 | Entwicklung, volle Historie | privat, hier |
-| Quelltext | `Schlotti73/Haushaltsfinanzen` |
-| Release-Pakete | `Schlotti73/Haushaltsfinanz-Releases` |
+| Quelltext, Release-Pakete, Container-Image, Seiten | `Schlotti73/Haushaltsfinanzen` |
+
+Öffentlich ist damit **ein** Ort. Bis v0.6.1 lagen die Pakete in einem eigenen
+Repository (`Schlotti73/Haushaltsfinanz-Releases`): es gab noch keinen
+öffentlichen Quellstand, den die Update-Prüfung ohne Zugangsdaten hätte fragen
+können. Seit es ihn gibt, ist das zweite Repository nur noch eine zweite Stelle
+mit derselben Wahrheit – es ist archiviert, seine alten Releases bleiben
+erreichbar.
 
 ## Der Weg
 
@@ -42,7 +48,6 @@ Commit, der hier je gemacht wurde.
 | `-Trotzdem` | Funde der Inhaltsprüfung übergehen |
 | `-Absender "Name <adresse>"` | anderer Absender für den Commit |
 | `-Repo`, `-Remote`, `-Zweig` | Ziel abweichend vom Standard |
-| `-ReleaseRepo "…"` | Repository der Release-Pakete, dessen README mitgepflegt wird |
 
 Das Skript bricht ab, wenn das Arbeitsverzeichnis nicht sauber ist. Das ist
 hier wichtiger als anderswo: gepusht wird der Baum des letzten **Commits**,
@@ -50,22 +55,36 @@ nicht der Dateien auf der Platte. Ohne diesen Abbruch hielte man eine Änderung
 für veröffentlicht, die man nur gespeichert hat.
 
 Ist der Baum drüben schon derselbe, endet das Skript ohne Commit – ein zweiter
-Aufruf erzeugt also keinen Leerlauf-Commit.
+Aufruf erzeugt also keinen Leerlauf-Commit. Fehlt dann noch der Versions-Tag,
+setzt es nur ihn (siehe nächster Abschnitt).
 
-## Die README des Release-Repositories
+## Der Versions-Tag
 
-`Schlotti73/Haushaltsfinanz-Releases` trägt keinen Baum, nur die ZIPs. Seine
-README wäre damit der einzige veröffentlichte Text, der nie durch die
-Inhaltsprüfung läuft – und gerade eine Installationsanleitung zieht Beispiele
-an, in denen Pfade und Namen stecken.
+Sitzt auf `HEAD` ein Tag der Form `v*`, setzt das Skript ihn drüben auf den
+Commit, den es gerade gebaut hat. Mitwandern kann er nicht: er zeigt hier auf
+einen Commit, den es drüben nicht gibt.
 
-Die Quelle liegt deshalb hier: [`docs/release-repo-readme.md`](release-repo-readme.md).
-Sie wird mit dem Baum geprüft und am Ende jeder Veröffentlichung über die
-GitHub-API als `README.md` hinübergeschrieben – nur, wenn sich der Inhalt
-unterscheidet, und bei `-Trockenlauf` gar nicht. Ein Fehlschlag dort ist ein
-Hinweis und kein Abbruch: Die Veröffentlichung selbst ist zu dem Zeitpunkt
-gelaufen. In das Paket wandert die Datei nicht, `create_prod_zip.ps1` nimmt aus
-`docs\` nur `betrieb.md` und `docker.md`.
+Drüben ist er kein Beiwerk, sondern der Auslöser. `.github/workflows/docker.yml`
+liegt im Baum, ist also auch die Datei des öffentlichen Repositories, und ein
+`v*`-Tag startet sie dort: **das Container-Image entsteht aus dem
+veröffentlichten Quellstand.** Auf dem privaten Repository läuft dieselbe Datei
+am selben Tag, baut und rauchtestet – und pusht nichts. Sie unterscheidet die
+beiden an `github.repository`. Der Lauf hier ist damit der Torwächter *vor*
+dem unumkehrbaren Veröffentlichen, der Lauf drüben die Veröffentlichung.
+
+Ohne Tag auf `HEAD` wird nur der Stand veröffentlicht – eine
+Zwischenveröffentlichung von Doku oder Rundgang braucht kein Image.
+
+Liegt der Tag drüben schon, bricht das Skript ab. An einem Release-Tag hängen
+Image und Release; ihn ein zweites Mal zu setzen, hieße eine veröffentlichte
+Version im Nachhinein auf etwas anderes zeigen zu lassen. Eine Korrektur
+braucht eine neue Versionsnummer.
+
+Ist der Baum drüben schon derselbe und fehlt nur der Tag – der Stand war
+vorab veröffentlicht, jetzt kommt die Version –, dann setzt das Skript ihn auf
+den bestehenden Commit und endet. Die Inhaltsprüfung entfällt in diesem Fall
+mit Absicht: öffentlich wird nichts Neues, dieser Baum liegt Zeichen für
+Zeichen schon drüben.
 
 ## Der Absender
 
@@ -107,15 +126,29 @@ Ein Treffer bricht ab. Sind wirklich alle Treffer harmlos, wiederholt
   Screenshots immer selbst ansehen, bevor sie hineinwandern.
 - **Binärdateien** allgemein (`git grep -I` überspringt sie).
 - **Die Release-Pakete.** Das ZIP entsteht aus
-  [`create_prod_zip.ps1`](../scripts/prod/create_prod_zip.ps1) und geht an ein
-  anderes Repository; es enthält das gebaute Frontend, in dem Texte aus dem
-  Quelltext nochmals stecken.
+  [`create_prod_zip.ps1`](../scripts/prod/create_prod_zip.ps1); es enthält das
+  gebaute Frontend, in dem Texte aus dem Quelltext nochmals stecken. Dasselbe
+  gilt für das Container-Image: Python wird nicht kompiliert, der Quelltext
+  liegt lesbar darin.
+- **Namen an Dateien und Releases.** Prüfbar ist der Inhalt des Baums, nicht
+  der Titel eines Releases. Die Release-*Beschreibung* läuft mit: sie steht in
+  [`docs/aenderungen.md`](aenderungen.md), und `create_prod_zip.ps1` schneidet
+  den Abschnitt der Version daraus heraus, statt ihn von Hand tippen zu lassen.
 
 ## Seiten
 
-GitHub Pages liefert `docs/` aus dem öffentlichen Repository aus. Der Rundgang
-liegt damit unter
-<https://schlotti73.github.io/Haushaltsfinanzen/demo/> und baut sich nach jeder
-Veröffentlichung neu, bei der sich `docs/` geändert hat. `docs/.nojekyll`
-schaltet den Jekyll-Bau ab: hier liegen fertige Dateien, und die
-Markdown-Dokumente sollen Dokumente bleiben.
+GitHub Pages liefert `docs/` aus dem öffentlichen Repository aus und baut nach
+jeder Veröffentlichung neu, bei der sich `docs/` geändert hat:
+
+| | |
+|---|---|
+| Startseite, zwei Wege | <https://schlotti73.github.io/Haushaltsfinanzen/> |
+| Rundgang | <https://schlotti73.github.io/Haushaltsfinanzen/demo/> |
+| Download | <https://schlotti73.github.io/Haushaltsfinanzen/download/> |
+
+`docs/.nojekyll` schaltet den Jekyll-Bau ab: hier liegen fertige Dateien, und
+die Markdown-Dokumente sollen Dokumente bleiben. Das ist auch der Grund, warum
+die Download-Seite eine HTML-Datei ist und kein Markdown – ohne Jekyll liefert
+Pages eine `.md` als Rohtext aus. Wer nur eine Zeile ändern will, ändert sie
+in `docs/download/index.html`; Markdown dafür einzuschalten hieße, den
+Rundgang und alle Konzeptpapiere unter `docs/` mit in einen Bau zu ziehen.

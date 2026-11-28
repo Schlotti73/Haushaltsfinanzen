@@ -2,17 +2,148 @@
 <html lang="de">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Haushaltsfinanzen</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="refresh" content="0; url=demo/">
-<link rel="canonical" href="demo/">
+<meta name="description" content="Haushaltsfinanz: lokal betriebene Finanzverwaltung fuer den eigenen Haushalt. Rundgang und Download.">
 <style>
-  body { font-family: system-ui, sans-serif; margin: 4rem auto; max-width: 34rem;
-         padding: 0 1rem; line-height: 1.6; }
+  /* Die Wurzel war bis hierher eine Weiterleitung auf den Rundgang. Seit es
+     eine Download-Seite gibt, waere das eine Tuer, die eine von zwei Wegen
+     verschluckt - sie fuehrt deshalb beide auf. Tokens wie in demo/ und
+     download/. */
+  :root {
+    --grund: #f7f7f5;
+    --flaeche: #ffffff;
+    --rand: #e2e1dc;
+    --text: #1d1d1b;
+    --text-leise: #5f5e58;
+    --akzent: #1f5f4b;
+    --akzent-leise: #e8f0ec;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --grund: #15171a;
+      --flaeche: #1d2024;
+      --rand: #2e3238;
+      --text: #ecebe6;
+      --text-leise: #a2a39f;
+      --akzent: #6fc3a3;
+      --akzent-leise: #1d2f2a;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --grund: #15171a;
+    --flaeche: #1d2024;
+    --rand: #2e3238;
+    --text: #ecebe6;
+    --text-leise: #a2a39f;
+    --akzent: #6fc3a3;
+    --akzent-leise: #1d2f2a;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--grund);
+    color: var(--text);
+    font: 16px/1.6 "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  }
+  .innen {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 72px max(16px, env(safe-area-inset-left, 0px)) 56px;
+  }
+  h1 {
+    font-size: clamp(2rem, 1.4rem + 2.4vw, 3rem);
+    line-height: 1.1;
+    margin: 0 0 12px;
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+  }
+  .unterzeile { font-size: 1.125rem; color: var(--text-leise); margin: 0 0 40px; max-width: 62ch; }
+  .marken { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 40px; list-style: none; padding: 0; }
+  .marken li {
+    font-size: 0.8125rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--akzent);
+    background: var(--akzent-leise);
+    border-radius: 999px;
+    padding: 4px 12px;
+  }
+
+  .wahl { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 24px; }
+  .karte {
+    background: var(--flaeche);
+    border: 1px solid var(--rand);
+    border-radius: 10px;
+    padding: 24px 26px;
+    display: flex;
+    flex-direction: column;
+  }
+  .karte h2 { font-size: 1.25rem; margin: 0 0 8px; }
+  .karte p { color: var(--text-leise); margin: 0 0 20px; }
+  .karte .knopf { margin-top: auto; }
+  .knopf {
+    display: inline-block;
+    align-self: flex-start;
+    background: var(--akzent);
+    color: var(--flaeche);
+    text-decoration: none;
+    font-weight: 600;
+    border-radius: 8px;
+    padding: 10px 18px;
+  }
+  .knopf:hover { filter: brightness(1.08); }
+
+  .wege { margin-top: 48px; padding-top: 20px; border-top: 1px solid var(--rand); display: flex; flex-wrap: wrap; gap: 8px 20px; }
+  .wege a { color: var(--akzent); font-size: 0.875rem; }
+  .fuss { color: var(--text-leise); font-size: 0.875rem; margin: 20px 0 0; max-width: 62ch; }
 </style>
 </head>
 <body>
-<p>Weiter zur <a href="demo/">Rundgang-Seite</a>.</p>
-<p>Quelltext: <a href="https://github.com/Schlotti73/Haushaltsfinanzen">github.com/Schlotti73/Haushaltsfinanzen</a></p>
+
+<div class="innen">
+  <h1>Haushaltsfinanzen</h1>
+  <p class="unterzeile">
+    Private Finanzverwaltung als Web-App im Heimnetz: Kontoauszüge als PDF einlesen,
+    Kassenzettel fotografieren, Darlehen hochrechnen, Nebenkosten je Zähler abrechnen,
+    Liquidität vorausschauen.
+  </p>
+  <ul class="marken">
+    <li>FastAPI</li>
+    <li>SQLite</li>
+    <li>React / PWA</li>
+    <li>Docker</li>
+    <li>läuft lokal</li>
+  </ul>
+
+  <div class="wahl">
+    <div class="karte">
+      <h2>Rundgang</h2>
+      <p>Alle Bereiche mit Screenshots und Erklärung – ohne etwas zu installieren. Die Zahlen und Namen darin sind erfunden.</p>
+      <a class="knopf" href="demo/">Zum Rundgang</a>
+    </div>
+    <div class="karte">
+      <h2>Download</h2>
+      <p>Windows-Paket oder Container-Image, dazu Voraussetzungen, Installation und Update.</p>
+      <a class="knopf" href="download/">Zum Download</a>
+    </div>
+  </div>
+
+  <nav class="wege">
+    <a href="https://github.com/Schlotti73/Haushaltsfinanzen">Quelltext auf GitHub</a>
+    <a href="https://github.com/Schlotti73/Haushaltsfinanzen/releases/latest">Neuestes Release</a>
+    <a href="https://github.com/Schlotti73/Haushaltsfinanzen/blob/main/LICENSE">MIT-Lizenz</a>
+  </nav>
+  <p class="fuss">
+    Privates Projekt, kein Produkt. Die Anwendung läuft auf dem eigenen Rechner; es gibt
+    keinen Server beim Anbieter.
+  </p>
+</div>
+
 </body>
 </html>

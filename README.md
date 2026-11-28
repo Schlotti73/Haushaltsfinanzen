@@ -24,6 +24,26 @@ Den Datensatz dahinter erzeugt `scripts/seed_demo.py` reproduzierbar neu, ohne e
 echter Daten; die verwendeten Platzhalter-Namen stehen in
 [`docs/beispieldaten.md`](docs/beispieldaten.md).
 
+## Installation
+
+Jede Version gibt es auf zwei Wegen, unter derselben Nummer. Voraussetzungen,
+Schritte und Update stehen auf der
+[Download-Seite](https://schlotti73.github.io/Haushaltsfinanzen/download/).
+
+**Windows** – ZIP aus dem
+[neuesten Release](https://github.com/Schlotti73/Haushaltsfinanzen/releases/latest)
+laden, freigeben, entpacken, `setup.cmd` als Administrator starten.
+
+**Docker**
+
+```bash
+docker pull ghcr.io/schlotti73/haushaltsfinanz:latest
+```
+
+Vorlagen für `compose.yaml` und `.env` liegen unter [`docker/`](docker/); der
+Betrieb im Container steht in [`docs/docker.md`](docs/docker.md), der auf
+Windows in [`docs/betrieb.md`](docs/betrieb.md).
+
 ## Projektstruktur
 
 ```
@@ -44,7 +64,9 @@ python scripts/init_db.py --force    # neu erzeugen (überschreibt)
 
 ## Status
 
-Im täglichen Einsatz, aktuelle Fassung v0.2.6. Die 15 Phasen des
+Im täglichen Einsatz; die laufende Fassung nennt das
+[neueste Release](https://github.com/Schlotti73/Haushaltsfinanzen/releases/latest).
+Die 15 Phasen des
 [Phasenplans](docs/phasenplan.md) sind abgeschlossen; was dabei entstanden ist:
 
 | Bereich | Stand |

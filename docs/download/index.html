@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Haushaltsfinanzen – Download</title>
+<meta name="description" content="Haushaltsfinanz herunterladen: Windows-Paket und Container-Image, Voraussetzungen, Installation und Update.">
+<style>
+  /* Dieselben Tokens und derselbe Aufbau wie der Rundgang (demo/index.html).
+     Bewusst eine eigenstaendige Datei ohne gemeinsames Stylesheet: Pages
+     liefert hier fertige Dateien aus, und drei Seiten rechtfertigen keine
+     vierte, die alle laden muessen. */
+  :root {
+    --grund: #f7f7f5;
+    --flaeche: #ffffff;
+    --rand: #e2e1dc;
+    --text: #1d1d1b;
+    --text-leise: #5f5e58;
+    --akzent: #1f5f4b;
+    --akzent-leise: #e8f0ec;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --grund: #15171a;
+      --flaeche: #1d2024;
+      --rand: #2e3238;
+      --text: #ecebe6;
+      --text-leise: #a2a39f;
+      --akzent: #6fc3a3;
+      --akzent-leise: #1d2f2a;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --grund: #15171a;
+    --flaeche: #1d2024;
+    --rand: #2e3238;
+    --text: #ecebe6;
+    --text-leise: #a2a39f;
+    --akzent: #6fc3a3;
+    --akzent-leise: #1d2f2a;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--grund);
+    color: var(--text);
+    font: 16px/1.6 "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  }
+
+  .bahn { width: 100%; }
+  .innen {
+    max-width: 1040px;
+    margin: 0 auto;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 0;
+  }
+
+  header.kopf { border-bottom: 1px solid var(--rand); background: var(--flaeche); }
+  header.kopf .innen { padding-block: 48px 40px; }
+  h1 {
+    font-size: clamp(2rem, 1.4rem + 2.4vw, 3rem);
+    line-height: 1.1;
+    margin: 0 0 12px;
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+  }
+  .unterzeile { font-size: 1.125rem; color: var(--text-leise); margin: 0; max-width: 62ch; }
+
+  main .innen { padding-block: 8px; }
+  section { padding-block: 40px; border-bottom: 1px solid var(--rand); }
+  section:last-of-type { border-bottom: 0; }
+  h2 {
+    font-size: 1.375rem;
+    margin: 0 0 8px;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
+  h2 .nummer {
+    font-variant-numeric: tabular-nums;
+    color: var(--akzent);
+    font-size: 0.875rem;
+    letter-spacing: 0.08em;
+    display: block;
+    margin-bottom: 6px;
+  }
+  h3 { font-size: 1rem; margin: 24px 0 8px; }
+  p { margin: 0 0 12px; max-width: 62ch; }
+  .leise { color: var(--text-leise); }
+
+  ul.punkte, ol.schritte { margin: 0 0 12px; padding-left: 20px; max-width: 62ch; }
+  ul.punkte li, ol.schritte li { margin-bottom: 6px; }
+
+  .karten { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; }
+  .karte {
+    background: var(--flaeche);
+    border: 1px solid var(--rand);
+    border-radius: 10px;
+    padding: 20px 22px;
+  }
+  .karte h3 { margin-top: 0; font-size: 1.125rem; }
+  .karte p:last-child { margin-bottom: 0; }
+  .knopf {
+    display: inline-block;
+    margin-top: 4px;
+    background: var(--akzent);
+    color: var(--flaeche);
+    text-decoration: none;
+    font-weight: 600;
+    border-radius: 8px;
+    padding: 10px 18px;
+  }
+  .knopf:hover { filter: brightness(1.08); }
+
+  .hinweis {
+    border-left: 3px solid var(--akzent);
+    background: var(--akzent-leise);
+    padding: 16px 18px;
+    border-radius: 0 8px 8px 0;
+    max-width: 72ch;
+  }
+  .hinweis p:last-child { margin-bottom: 0; }
+
+  table.technik { border-collapse: collapse; width: 100%; max-width: 680px; font-size: 0.9375rem; }
+  table.technik th, table.technik td { text-align: left; padding: 8px 12px 8px 0; border-bottom: 1px solid var(--rand); vertical-align: top; }
+  table.technik th { width: 30%; font-weight: 500; color: var(--text-leise); }
+
+  code, .mono {
+    font-family: "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace;
+    font-size: 0.875em;
+    background: var(--akzent-leise);
+    padding: 1px 5px;
+    border-radius: 4px;
+  }
+  pre {
+    background: var(--flaeche);
+    border: 1px solid var(--rand);
+    border-radius: 8px;
+    padding: 14px 16px;
+    overflow-x: auto;
+    font-family: "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    max-width: 72ch;
+  }
+  pre code { background: none; padding: 0; }
+  a { color: var(--akzent); }
+
+  footer.fuss { border-top: 1px solid var(--rand); background: var(--flaeche); }
+  footer.fuss .innen { padding-block: 28px 36px; }
+  footer.fuss p { font-size: 0.875rem; color: var(--text-leise); }
+  footer.fuss .wege { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 8px 20px; }
+  footer.fuss a { font-size: 0.875rem; }
+</style>
+</head>
+<body>
+
+<header class="kopf bahn">
+  <div class="innen">
+    <h1>Haushaltsfinanz herunterladen</h1>
+    <p class="unterzeile">
+      Zwei Wege, dieselbe Versionsnummer: als Windows-Dienst auf dem eigenen Rechner
+      oder als Container. Die Anwendung läuft im Heimnetz, und die Daten bleiben dort.
+    </p>
+  </div>
+</header>
+
+<main class="bahn">
+  <div class="innen">
+
+    <section>
+      <div class="karten">
+        <div class="karte">
+          <h3>Windows</h3>
+          <p>
+            ZIP aus dem neuesten Release laden, entpacken, <code>setup.cmd</code> als
+            Administrator starten. Alles Weitere holt das Setup selbst nach.
+          </p>
+          <p>
+            <a class="knopf" href="https://github.com/Schlotti73/Haushaltsfinanzen/releases/latest">Zum neuesten Release</a>
+          </p>
+        </div>
+        <div class="karte">
+          <h3>Docker</h3>
+          <p>
+            Image aus der GitHub-Registry; die Vorlagen für <code>compose.yaml</code> und
+            <code>.env</code> liegen im Repository unter <code>docker/</code>.
+          </p>
+          <pre><code>docker pull ghcr.io/schlotti73/haushaltsfinanz:latest</code></pre>
+          <p class="leise">
+            Einrichtung, Update und Rollback:
+            <a href="https://github.com/Schlotti73/Haushaltsfinanzen/blob/main/docs/docker.md">docs/docker.md</a>
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2><span class="nummer">1 — Windows</span>Was der Rechner mitbringen muss</h2>
+      <table class="technik">
+        <tr><th>Windows</th><td>10 oder 11, 64-Bit</td></tr>
+        <tr><th>Rechte</th><td>Administrator – das Setup fragt sie selbst ab</td></tr>
+        <tr><th>Internet</th><td>während der Installation; danach nicht mehr nötig</td></tr>
+        <tr><th>App Installer</th><td>der Befehl <code>winget</code>; er gehört zu Windows 10/11, fehlt aber auf manchen Systemen</td></tr>
+      </table>
+      <p>
+        Fehlt <code>winget</code>, meldet das Setup das vor der ersten Änderung und nennt die
+        beiden Bezugswege: den „App Installer“ aus dem Microsoft Store oder das
+        <code>.msixbundle</code> von
+        <a href="https://github.com/microsoft/winget-cli/releases">winget-cli</a>. Gebraucht
+        wird er nur, solange Python und die Texterkennung noch fehlen – sind sie schon
+        installiert, läuft das Setup auch ohne ihn.
+      </p>
+      <p>Das Setup holt selbst nach, was fehlt:</p>
+      <ul class="punkte">
+        <li><strong>Python</strong> – die Laufzeitumgebung der Anwendung,</li>
+        <li><strong>Tesseract-OCR</strong> – die Texterkennung für Kassenzettel und Belege,</li>
+        <li><strong>WinSW</strong> – den Wrapper, der die Anwendung als Windows-Dienst betreibt.</li>
+      </ul>
+      <p>
+        Alles Übrige liegt im Paket: die Python-Pakete als fertige Wheels, die Sprachdaten der
+        Texterkennung und das vorgebaute Frontend. Node.js wird auf dem Zielrechner nicht
+        gebraucht. Die genauen Versionen stehen in <code>docs/betrieb.md</code> im Paket.
+      </p>
+    </section>
+
+    <section>
+      <h2><span class="nummer">2 — Windows</span>Installieren</h2>
+      <ol class="schritte">
+        <li>ZIP freigeben: Rechtsklick → Eigenschaften → „Zulassen“ – sonst sperrt Windows die Skripte im Paket,</li>
+        <li>entpacken,</li>
+        <li><code>setup.cmd</code> starten und die Administrator-Abfrage bestätigen.</li>
+      </ol>
+      <p>
+        Danach läuft die Anwendung als Windows-Dienst und ist im Browser erreichbar. Das
+        Anmeldepasswort erzeugt der erste Start zufällig und zeigt es genau einmal an;
+        gespeichert wird nur sein Hash.
+      </p>
+      <p class="leise">
+        Ausführlich – Ports, Zertifikat, Backup, Dienst-Verwaltung – in
+        <a href="https://github.com/Schlotti73/Haushaltsfinanzen/blob/main/docs/betrieb.md">docs/betrieb.md</a>,
+        das auch im Paket liegt.
+      </p>
+    </section>
+
+    <section>
+      <h2><span class="nummer">3 — Docker</span>Container einrichten</h2>
+      <p>
+        Kurzfassung: Ordner anlegen, <code>compose.yaml</code> und <code>.env</code> aus den
+        Vorlagen übernehmen, starten.
+      </p>
+      <pre><code>mkdir -p ~/docker/haushaltsfinanzen/daten &amp;&amp; cd ~/docker/haushaltsfinanzen
+docker compose up -d
+docker compose logs app | grep -A4 "Erster Start"</code></pre>
+      <p>
+        Das Anmeldepasswort steht genau einmal im Log. Gemountet wird ein einziger Ordner
+        (<code>daten/</code>) – darin Datenbank, Belege, Kontoauszüge, Backups und
+        Einstellungen. Das Programm selbst steckt im Image und wird nie gemountet.
+      </p>
+      <p class="leise">
+        Alles Weitere – Update, Rollback, Reverse-Proxy, zweiter Faktor außerhalb des
+        Heimnetzes – in
+        <a href="https://github.com/Schlotti73/Haushaltsfinanzen/blob/main/docs/docker.md">docs/docker.md</a>.
+      </p>
+    </section>
+
+    <section>
+      <h2><span class="nummer">4 — Beide Wege</span>Updaten</h2>
+      <h3>Windows</h3>
+      <p>
+        Neues Paket entpacken und <code>update.cmd</code> starten. Oder, bei laufender
+        Installation, unter <em>Einstellungen → Programm-Update</em> herunterladen und den dort
+        genannten Starter doppelklicken. Steht eine Schema-Änderung an, legt das Update vorher
+        eine Sicherung der Datenbank an – ohne Sicherung keine Migration.
+      </p>
+      <h3>Docker</h3>
+      <pre><code>docker compose pull &amp;&amp; docker compose up -d</code></pre>
+      <p>
+        Denselben Befehl zeigt die Oberfläche, sobald eine neuere Fassung vorliegt. Die
+        Sicherung vor einer Migration übernimmt hier der Containerstart.
+      </p>
+      <p class="leise">
+        Beide Wege tragen dieselbe Versionsnummer: das Windows-Paket liegt als Release im
+        Repository, das Image trägt denselben Tag.
+      </p>
+    </section>
+
+    <section>
+      <div class="hinweis">
+        <p>
+          <strong>Privates Projekt, kein Produkt.</strong> Die Anwendung entsteht für einen
+          Haushalt und wird dort täglich benutzt. Sie steht unter der
+          <a href="https://github.com/Schlotti73/Haushaltsfinanzen/blob/main/LICENSE">MIT-Lizenz</a>
+          – Nutzung und Änderung sind erlaubt, eine Gewährleistung gibt es nicht. Einen Server
+          beim Anbieter gibt es nicht: alle Daten liegen auf dem Rechner, auf dem die Anwendung
+          läuft.
+        </p>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<footer class="fuss bahn">
+  <div class="innen">
+    <p>Haushaltsfinanz – lokal betriebene Finanzverwaltung für den eigenen Haushalt.</p>
+    <nav class="wege">
+      <a href="../demo/">Rundgang durch die App</a>
+      <a href="https://github.com/Schlotti73/Haushaltsfinanzen">Quelltext auf GitHub</a>
+      <a href="https://github.com/Schlotti73/Haushaltsfinanzen/releases">Alle Releases</a>
+      <a href="https://github.com/Schlotti73/Haushaltsfinanzen/blob/main/LICENSE">MIT-Lizenz</a>
+    </nav>
+  </div>
+</footer>
+
+</body>
+</html>

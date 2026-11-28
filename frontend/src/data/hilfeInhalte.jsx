@@ -177,7 +177,9 @@ function PdfImport() {
         wird aufbewahrt – auch dann, wenn der Lauf nur Duplikate enthielt. Unter dem
         Upload-Formular stehen die gespeicherten Auszüge des gewählten Kontos mit Zeitraum, Bank
         und Zeilenzahl; ein Klick auf den Dateinamen zeigt das PDF direkt in der App. Lädst du
-        dieselbe Datei erneut hoch, entsteht kein zweiter Eintrag.
+        dieselbe Datei erneut hoch, entsteht kein zweiter Eintrag. Die Liste ist nach Jahren
+        gruppiert – nach dem Zeitraum des Auszugs, nicht nach dem Importdatum; ein Klick auf die
+        Jahreszahl klappt das Jahr zu oder wieder auf.
       </p>
       <p>
         Die Auszüge liegen im Ordner <span className="font-mono text-xs">kontoauszuege/</span> und

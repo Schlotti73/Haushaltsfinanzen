@@ -261,8 +261,8 @@ export default function UpdateBereich() {
         </summary>
         <div className="mt-3 space-y-3">
           <p className="text-xs text-gray-400">
-            Die Pakete liegen in einem eigenen, öffentlichen Repository – die Prüfung kommt
-            darum ohne Zugangsdaten aus und kann nicht ablaufen.
+            Die Pakete liegen als Release im öffentlichen Repository des Projekts – die
+            Prüfung kommt darum ohne Zugangsdaten aus und kann nicht ablaufen.
           </p>
           <label className="block text-sm text-gray-700">
             Repository

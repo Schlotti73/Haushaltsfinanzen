@@ -306,19 +306,42 @@ Repository baut. Abhilfe: neu bauen.
 
 ---
 
-## Einmalig: das Paket öffentlich schalten
+## Einmalig am Paket: Sichtbarkeit und Schreibrecht
 
-Ein neues ghcr-Paket erbt die Sichtbarkeit des Repositories – und das
-Quell-Repository ist privat. Beim allerersten Release ist das Image deshalb
-privat, und ein fremder `docker pull` scheitert mit `unauthorized`. Kein
-Workflow kann das ändern, es ist eine Einstellung am Paket:
+Zwei Einstellungen am ghcr-Paket, die kein Workflow setzen kann.
+
+**Sichtbarkeit.** Ein neues ghcr-Paket erbt die Sichtbarkeit des Repositories,
+aus dem es gepusht wurde – und das war anfangs das private
+Entwicklungs-Repository. Beim allerersten Release ist das Image deshalb privat,
+und ein fremder `docker pull` scheitert mit `unauthorized`:
 
 > github.com/users/<Konto>/packages/container/haushaltsfinanz/settings
 > → *Danger Zone* → *Change visibility* → **Public**
 
-Danach gilt es für alle künftigen Releases. Prüfen lässt es sich nur
-unangemeldet – ein `docker logout ghcr.io` vorweg, sonst zieht der eigene
-Rechner das Image über die eigenen Rechte und die Antwort sagt nichts aus:
+**Schreibrecht des bauenden Repositories.** Gepusht wird das Image aus
+`Schlotti73/Haushaltsfinanzen` (siehe
+[`veroeffentlichen.md`](veroeffentlichen.md)), während das Paket noch dem
+Repository gehört, aus dem es ursprünglich kam. Fehlt das neue in der Liste,
+scheitert der Push mit `permission_denied` – und zwar mitten im Release,
+nachdem der Quellstand schon draußen ist:
+
+> …/packages/container/haushaltsfinanz/settings
+> → *Manage Actions access* → *Add repository* → `Haushaltsfinanzen`, Rolle **Write**
+
+Zwei Stolperstellen auf dieser Seite: Direkt unter *Manage Actions access*
+steht das gleich aussehende *Manage Codespaces access* – ein Eintrag dort
+hilft dem Workflow nichts. Und ein frisch hinzugefügtes Repository bekommt
+die Rolle *Read*; sie muss von Hand auf *Write* gestellt werden. Beides endet
+im selben Fehler: `permission_denied: write_package`.
+
+Nachsehen lässt sich das, ohne auf ein Release zu warten: im öffentlichen
+Repository den Workflow *Docker-Image* von Hand starten (*Actions* → *Run
+workflow*) und „veroeffentlichen" auf `true` setzen. Das pusht ein
+`dev-<datum>-<sha>`-Image und lässt `latest` unberührt.
+
+Die Sichtbarkeit prüft man nur unangemeldet – ein `docker logout ghcr.io`
+vorweg, sonst zieht der eigene Rechner das Image über die eigenen Rechte und
+die Antwort sagt nichts aus:
 
 ```bash
 docker logout ghcr.io && docker pull ghcr.io/schlotti73/haushaltsfinanz:latest
@@ -346,6 +369,13 @@ Der Rauchtest startet das Image mit leerem Datenordner, wartet auf
 anschließend neu – der Neustart darf weder migrieren noch ein zweites Passwort
 erzeugen. Denselben Test läuft `.github/workflows/docker.yml` vor jedem Push
 nach ghcr.io.
+
+Dieser Workflow läuft in **beiden** Repositories, denn er liegt im Baum und
+der Baum wird veröffentlicht. Ein Versions-Tag im privaten Repository lässt ihn
+bauen und rauchtesten, aber nichts pushen; gepusht wird nur aus
+`Schlotti73/Haushaltsfinanzen`, wohin `veroeffentlichen.ps1` den Tag mitnimmt.
+Das Image stammt damit aus dem Quellstand, der öffentlich einsehbar ist – und
+der Lauf im privaten Repository ist der Torwächter davor.
 
 Was ein Workflow nicht prüfen kann, ist das **Update einer bestehenden
 Installation**: Revisionsvergleich, Sicherung, Migration. Dafür gibt es auf dem

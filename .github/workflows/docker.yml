@@ -8,6 +8,21 @@
 # Reihenfolge mit Absicht: bauen, *dann* rauchtesten, erst dann pushen. Ein
 # Image, das den Erststart nicht schafft, erreicht die Registry nicht - und
 # niemanden, der es sonst als erstes gefunden haette.
+#
+# Diese Datei laeuft in ZWEI Repositories. Sie liegt im Baum, und der Baum
+# wird veroeffentlicht (scripts/prod/veroeffentlichen.ps1) - sie ist drueben
+# also dieselbe Datei, und ein Versions-Tag loest sie hier wie dort aus.
+# Gepusht wird deshalb nur aus dem oeffentlichen Repository:
+#
+#   * oeffentlich (Haushaltsfinanzen) - bauen, rauchtesten, nach ghcr.io
+#     pushen. Dort haengt das Paket, dort liegt der Quellstand, aus dem es
+#     gebaut wurde, und dort liegt das Release mit dem Windows-Paket.
+#   * privat (Projekt-Finanzen) - bauen und rauchtesten, nichts pushen. Das
+#     ist der Torwaechter *vor* dem Veroeffentlichen: scheitert der Bau, ist
+#     noch nichts nach draussen gegangen.
+#
+# Ohne diese Weiche pushten beide Laeufe dasselbe Paket, und das Paket haenge
+# am Repository des letzten Pushs - mal am oeffentlichen, mal am privaten.
 
 name: Docker-Image
 
@@ -73,8 +88,10 @@ jobs:
       - name: Rauchtest
         run: ./docker/rauchtest.sh "${{ steps.version.outputs.image }}:${{ steps.version.outputs.wert }}"
 
+      # Ab hier nur im oeffentlichen Repository (siehe Kopf): der Lauf auf
+      # dem privaten endet mit dem Rauchtest.
       - name: Bei ghcr.io anmelden
-        if: github.ref_type == 'tag' || inputs.veroeffentlichen
+        if: github.repository == 'Schlotti73/Haushaltsfinanzen' && (github.ref_type == 'tag' || inputs.veroeffentlichen)
         uses: docker/login-action@v4
         with:
           registry: ghcr.io
@@ -82,7 +99,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Veroeffentlichen
-        if: github.ref_type == 'tag' || inputs.veroeffentlichen
+        if: github.repository == 'Schlotti73/Haushaltsfinanzen' && (github.ref_type == 'tag' || inputs.veroeffentlichen)
         run: |
           docker push "${{ steps.version.outputs.image }}:${{ steps.version.outputs.wert }}"
           # latest nur fuer echte Releases: ein Testlauf darf nicht das sein,
@@ -92,12 +109,26 @@ jobs:
             docker push "${{ steps.version.outputs.image }}:latest"
           fi
 
+      # Die Zusammenfassung sagt, was der Lauf getan hat - und im privaten
+      # Repository heisst das ausdruecklich: nichts veroeffentlicht. Eine
+      # Meldung "Image veroeffentlicht" waere dort eine Luege, die man erst
+      # beim vergeblichen docker pull bemerkt.
       - name: Zusammenfassung
         run: |
-          {
-            echo "### Image veroeffentlicht"
-            echo ""
-            echo '```'
-            echo "docker pull ${{ steps.version.outputs.image }}:${{ steps.version.outputs.wert }}"
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ github.repository }}" = "Schlotti73/Haushaltsfinanzen" ] \
+             && { [ "${{ github.ref_type }}" = "tag" ] || [ "${{ inputs.veroeffentlichen }}" = "true" ]; }; then
+            {
+              echo "### Image veroeffentlicht"
+              echo ""
+              echo '```'
+              echo "docker pull ${{ steps.version.outputs.image }}:${{ steps.version.outputs.wert }}"
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            {
+              echo "### Gebaut und rauchgetestet, nicht veroeffentlicht"
+              echo ""
+              echo "Gepusht wird nur aus \`Schlotti73/Haushaltsfinanzen\`; dieser Lauf"
+              echo "ist der Torwaechter davor."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi

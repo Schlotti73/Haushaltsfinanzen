@@ -14,11 +14,12 @@ param(
     [string]$Version   = "",      # leer = interaktive Abfrage
     [switch]$OhneTag,             # kein Tag anlegen (Vorabpaket)
     [switch]$Unsauber,            # Aenderungen im Arbeitsverzeichnis zulassen
-    # Oeffentliches Paket-Repository, aus dem die laufenden Installationen ihr
-    # Update holen. Dieses Skript laedt nichts hoch, es nennt am Ende nur den
-    # passenden gh-Befehl - die Voreinstellung muss aber zu der in
+    # Das oeffentliche Repository, aus dem die laufenden Installationen ihr
+    # Update holen - dasselbe, das den Quellstand und das Container-Image
+    # traegt. Dieses Skript laedt nichts hoch, es nennt am Ende nur den
+    # passenden gh-Befehl; die Voreinstellung muss aber zu der in
     # backend/app/services/update.py passen.
-    [string]$ReleaseRepo = "Schlotti73/Haushaltsfinanz-Releases"
+    [string]$ReleaseRepo = "Schlotti73/Haushaltsfinanzen"
 )
 
 $ErrorActionPreference = "Stop"
@@ -319,14 +320,51 @@ Write-Host "                      (oder .\scripts\prod\update.ps1 -Paket <pfad z
 if (-not $OhneTag) {
     Write-Host ""
     Write-Host "  Tag $paketVersion ist nur lokal - noch zu veroeffentlichen:" -ForegroundColor Yellow
-    Write-Host "    git push --tags"
+    Write-Host "    git push origin main --follow-tags"
+    Write-Host "    .\scripts\prod\veroeffentlichen.ps1 -Nachricht `"...`"   # nimmt den Tag mit und"
+    Write-Host "                                                         # loest den Image-Bau aus"
     Write-Host ""
-    # Das Paket gehoert in das oeffentliche Release-Repository, nicht hierher:
-    # die laufenden Installationen fragen dort an, ohne Zugangsdaten. Siehe
-    # den Abschnitt "Update-Erkennung" in docs/betrieb.md.
-    Write-Host "  Damit die Installationen das Update finden, Release anlegen:" -ForegroundColor Yellow
+
+    # Die Release-Beschreibung steht in docs\aenderungen.md, also im Baum -
+    # nur so laeuft sie durch dieselbe Pruefung auf Personenbezug wie der
+    # Quelltext. Hier wird der Abschnitt dieser Version herausgeschnitten.
+    #
+    # Die Datei dafuer liegt im TEMP-Ordner und nicht neben dem ZIP: eine neue
+    # Datei im Arbeitsbaum liesse veroeffentlichen.ps1 mit "nicht sauber"
+    # abbrechen, und zwar an der Stelle, an der dieser Ablauf gerade ist.
+    $hinweisDatei = Join-Path $env:TEMP "Haushaltsfinanz_${paketVersion}_hinweise.md"
+    $aenderungen  = Join-Path $root "docs\aenderungen.md"
+    $abschnitt = @()
+    if (Test-Path $aenderungen) {
+        $drin = $false
+        foreach ($zeile in (Get-Content $aenderungen -Encoding UTF8)) {
+            if ($zeile -match '^##\s') {
+                if ($drin) { break }
+                $drin = ($zeile -match ('^##\s+' + [regex]::Escape($paketVersion) + '(\s|$)'))
+                continue
+            }
+            if ($drin) { $abschnitt += $zeile }
+        }
+    }
+
+    if ($abschnitt.Count -gt 0) {
+        # Ohne BOM: gh nimmt die Datei Byte fuer Byte als Beschreibung, und ein
+        # BOM stuende als unsichtbares Zeichen am Anfang des Release-Textes.
+        [IO.File]::WriteAllText($hinweisDatei,
+                                (($abschnitt -join "`r`n").Trim() + "`r`n"),
+                                (New-Object Text.UTF8Encoding($false)))
+        Write-Host "  Beschreibung aus docs\aenderungen.md: $hinweisDatei" -ForegroundColor DarkGray
+        $notizen = "--notes-file `"$hinweisDatei`""
+    } else {
+        Write-Host "  Hinweis: docs\aenderungen.md hat keinen Abschnitt '## $paketVersion' -" -ForegroundColor DarkYellow
+        Write-Host "           erst dort eintragen, sonst steht das Release ohne Beschreibung da" -ForegroundColor DarkYellow
+        Write-Host "           (sie ist es, die die Anwendung unter Programm-Update anzeigt)." -ForegroundColor DarkYellow
+        $notizen = "--notes-file <abschnitt aus docs\aenderungen.md>"
+    }
+    Write-Host ""
+    Write-Host "  Zuletzt - erst nach dem Image-Bau und dem Pruefstand-Test:" -ForegroundColor Yellow
     Write-Host "    gh release create $paketVersion `"$zipPath`" ``"
     Write-Host "       --repo $ReleaseRepo ``"
-    Write-Host "       --title $paketVersion --notes `"...`""
+    Write-Host "       --title $paketVersion $notizen"
 }
 Write-Host ""

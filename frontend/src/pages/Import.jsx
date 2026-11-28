@@ -45,10 +45,14 @@ const OHNE_ZEITRAUM = 'Ohne Zeitraum'
 // Zeilen leer (siehe ParseResult im Backend). Solche Auszuege bekommen eine
 // eigene Gruppe am Ende, statt still nach Importdatum in ein Jahr zu rutschen,
 // in das sie vielleicht nicht gehoeren.
+function gruppenJahr(a) {
+  return a.zeitraum_von ? a.zeitraum_von.slice(0, 4) : OHNE_ZEITRAUM
+}
+
 function nachJahrGruppieren(auszuege) {
   const gruppen = new Map()
   for (const a of auszuege) {
-    const jahr = a.zeitraum_von ? a.zeitraum_von.slice(0, 4) : OHNE_ZEITRAUM
+    const jahr = gruppenJahr(a)
     if (!gruppen.has(jahr)) gruppen.set(jahr, [])
     gruppen.get(jahr).push(a)
   }
@@ -107,6 +111,25 @@ export default function Import() {
   const fileRef = useRef()
   const { confirm, dialog } = useConfirm()
   const auszugJahre = useMemo(() => nachJahrGruppieren(auszuege), [auszuege])
+  // Zugeklappte Jahre, nicht aufgeklappte: so bleibt alles offen, solange
+  // niemand etwas zuklappt - auch ein Jahr, das erst nach einem Import
+  // dazukommt.
+  const [zugeklappteJahre, setZugeklappteJahre] = useState(() => new Set())
+  function jahrUmschalten(jahr) {
+    const zuklappen = !zugeklappteJahre.has(jahr)
+    setZugeklappteJahre(alt => {
+      const neu = new Set(alt)
+      if (zuklappen) neu.add(jahr)
+      else neu.delete(jahr)
+      return neu
+    })
+    // Ein offenes Bearbeiten-Formular in diesem Jahr waere sonst nur
+    // ausgeblendet und seine Eingaben beim naechsten Aufklappen noch da.
+    if (zuklappen && auszugBearbeitet) {
+      const a = auszuege.find(x => x.id === auszugBearbeitet.id)
+      if (a && gruppenJahr(a) === jahr) setAuszugBearbeitet(null)
+    }
+  }
 
   useEffect(() => {
     kontenApi.list(false).then(r => setKonten(r.data))
@@ -1140,20 +1163,40 @@ export default function Import() {
                     <th className="py-2"></th>
                   </tr>
                 </thead>
-                {auszugJahre.map(g => (
+                {auszugJahre.map(g => {
+                const zu = zugeklappteJahre.has(g.jahr)
+                return (
                 <tbody key={g.jahr}>
                   <tr>
-                    <th
-                      colSpan={5}
-                      className="text-left pt-3 pb-1 text-xs font-semibold uppercase tracking-wide text-gray-500"
-                    >
-                      {g.jahr}
-                    </th>
-                    <th colSpan={2} className="text-right pt-3 pb-1 text-xs font-normal text-gray-500">
-                      {g.liste.length === 1 ? '1 Auszug' : `${g.liste.length} Auszüge`}
+                    <th colSpan={7} className="pt-3 pb-1 font-normal">
+                      {/* Pfeil und Jahreszahl schalten dasselbe, liegen aber
+                          nebeneinander statt ineinander: ein Button im Button
+                          waere ungueltiges HTML. */}
+                      <div className="flex w-full items-center gap-2">
+                        <button
+                          type="button"
+                          className="btn-secondary btn-icon-sm"
+                          aria-expanded={!zu}
+                          aria-label={zu ? `${g.jahr} aufklappen` : `${g.jahr} zuklappen`}
+                          title={zu ? 'Aufklappen' : 'Zuklappen'}
+                          onClick={() => jahrUmschalten(g.jahr)}
+                        >
+                          {zu ? '▸' : '▾'}
+                        </button>
+                        <button
+                          type="button"
+                          className="text-lg font-semibold tabular-nums text-gray-900 text-left"
+                          onClick={() => jahrUmschalten(g.jahr)}
+                        >
+                          {g.jahr}
+                        </button>
+                        <span className="ml-auto text-xs text-gray-500">
+                          {g.liste.length === 1 ? '1 Auszug' : `${g.liste.length} Auszüge`}
+                        </span>
+                      </div>
                     </th>
                   </tr>
-                  {g.liste.map(a => (
+                  {!zu && g.liste.map(a => (
                     <React.Fragment key={a.id}>
                     <tr className="border-b last:border-0 hover:bg-gray-50">
                       <td className="py-2 pr-3 tabular-nums whitespace-nowrap">
@@ -1278,7 +1321,7 @@ export default function Import() {
                     </React.Fragment>
                   ))}
                 </tbody>
-                ))}
+                )})}
               </table>
             </div>
           )}

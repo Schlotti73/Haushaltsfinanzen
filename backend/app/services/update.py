@@ -1,17 +1,22 @@
 """Erkennen, ob ein neueres Release vorliegt, und das Paket herunterladen.
 
-Gefragt wird ein eigenes, oeffentliches Repository, das nichts als die Pakete
-enthaelt - der Quellcode liegt weiterhin woanders. Damit braucht die Abfrage
-keine Zugangsdaten.
+Gefragt wird das oeffentliche Repository des Projekts. Dort liegt der
+veroeffentlichte Quellstand, dort haengt das Container-Image, und dort traegt
+jede Version ein Release mit dem Windows-Paket - ein Ort, eine Wahrheit.
+Zugangsdaten braucht die Abfrage damit nicht.
 
-Der Umweg hat einen Grund. Im privaten Entwicklungs-Repository waere ein
-Personal Access Token noetig, und dessen kleinste passende Berechtigung
-(`Contents: Read`) umfasst zwangslaeufig den gesamten Quellcode: eine
-Beschraenkung auf "nur die Release-Anhaenge" kennt GitHub nicht. Dazu laufen
-Token ab, und zwar auf jeder Installation einzeln, ohne dass GitHub sie
-erneuern wuerde. Ein oeffentliches Paket-Repository loest beides auf einmal -
-und das ZIP enthaelt ohnehin den Quellcode, verbirgt also nichts, was die
-Trennung zu schuetzen haette.
+Das private Entwicklungs-Repository zu fragen waere die Alternative, und eine
+schlechte: es braeuchte ein Personal Access Token, dessen kleinste passende
+Berechtigung (`Contents: Read`) zwangslaeufig den gesamten Quellcode umfasst -
+eine Beschraenkung auf "nur die Release-Anhaenge" kennt GitHub nicht. Dazu
+laufen Token ab, und zwar auf jeder Installation einzeln, ohne dass GitHub sie
+erneuern wuerde.
+
+Bis v0.6.1 lagen die Pakete in einem eigenen Repository, das nichts als die
+ZIPs enthielt: einen oeffentlichen Quellstand gab es damals noch nicht, und
+das ZIP enthaelt ohnehin den Quellcode. Dieses Repository ist archiviert, die
+alten Releases bleiben dort erreichbar. Eine gespeicherte Angabe, die noch
+darauf zeigt, liest `lese_cfg` auf den neuen Ort um.
 
 Ein Token laesst sich trotzdem hinterlegen, fuer den Fall, dass die Pakete
 spaeter wieder privat liegen. Es steht dann in `<Einstellungen>/update.json`,
@@ -52,9 +57,17 @@ _ZIEL_ORDNER = daten_dir() / "updates"
 # Programms, und ein eigener Webspace kaeme spaeter als zweiter Kanal in Frage.
 _DEFAULTS: dict = {
     "aktiviert": True,
-    "repo": "Schlotti73/Haushaltsfinanz-Releases",
+    "repo": "Schlotti73/Haushaltsfinanzen",
     "token": "",
 }
+
+# Der Ort von vorher. Eine update.json, die genau diesen Wert traegt, stammt
+# nicht aus einer Entscheidung, sondern aus der damaligen Voreinstellung - sie
+# wird darum auf den neuen Ort gelesen. Ohne das fragte die Installation stumm
+# weiter ein archiviertes Repository: dort bleibt v0.6.1 fuer immer das
+# neueste Release, und die Update-Meldung kaeme einfach nie wieder. Ein selbst
+# eingetragener, abweichender Ort bleibt unangetastet.
+_ALTES_REPO = "Schlotti73/Haushaltsfinanz-Releases"
 
 # Die Release-Abfrage wird kurz zwischengespeichert: die Seitenleiste fragt den
 # Status bei jedem Seitenaufruf ab. Ohne Token laesst GitHub nur 60 Anfragen je
@@ -83,7 +96,10 @@ def lese_cfg() -> dict:
     if _CFG_DATEI.exists():
         try:
             daten = json.loads(_CFG_DATEI.read_text(encoding="utf-8"))
-            return {**_DEFAULTS, **daten}
+            cfg = {**_DEFAULTS, **daten}
+            if str(cfg.get("repo") or "").strip() == _ALTES_REPO:
+                cfg["repo"] = _DEFAULTS["repo"]
+            return cfg
         except Exception:
             pass
     return dict(_DEFAULTS)
@@ -239,7 +255,7 @@ def status(erzwingen: bool = False) -> dict:
         # (Windows) oder den fertigen compose-Befehl (Docker).
         "betriebsart": betriebsart(),
         "update_befehl": DOCKER_UPDATE_BEFEHL if betriebsart() == "docker" else "",
-        # Das Paket-Repository ist oeffentlich: die Repo-Angabe allein genuegt,
+        # Das Repository ist oeffentlich: die Repo-Angabe allein genuegt,
         # ein Token ist die Ausnahme und keine Voraussetzung.
         "konfiguriert": bool(cfg["repo"]),
         "token_hinterlegt": bool(cfg["token"]),
